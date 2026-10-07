@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/client.js';
+import MicrosoftEmailPanel from '../components/MicrosoftEmailPanel.jsx';
 
 export default function CustomerDetail() {
   const { id } = useParams();
@@ -88,6 +89,8 @@ export default function CustomerDetail() {
       </div>
       {message && <p className="success-text">{message}</p>}
       {error && <p className="error-text">{error}</p>}
+
+      <MicrosoftEmailPanel sendUrl={`/customers/${id}/email`} disabled={!customer.email} />
 
       <div className="grid cols-2">
         <div className="card">

@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../api/client.js';
 
 export default function Settings() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [checklists, setChecklists] = useState({});
   const [stages, setStages] = useState([]);
   const [general, setGeneral] = useState({});
@@ -15,6 +17,20 @@ export default function Settings() {
   };
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    const ms = searchParams.get('microsoft');
+    if (ms === 'connected') {
+      setMessage('Microsoft 365 connected successfully.');
+      searchParams.delete('microsoft');
+      setSearchParams(searchParams, { replace: true });
+    } else if (ms === 'error') {
+      setError(searchParams.get('msg') || 'Microsoft connection failed.');
+      searchParams.delete('microsoft');
+      searchParams.delete('msg');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const addItem = (stageCode) => {
     setChecklists({

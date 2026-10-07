@@ -3,11 +3,11 @@ import { useAuth } from '../context/AuthContext.jsx';
 import api from '../api/client.js';
 import { createInboxEcho } from '../api/echo.js';
 
-const CHANNELS = ['facebook', 'viber', 'line'];
+const CHANNELS = ['facebook', 'viber', 'line', 'outlook'];
 const STATUSES = ['unassigned', 'open', 'pending', 'closed'];
 const INBOX_MANAGER_ROLES = ['supervisor', 'senior_management', 'ceo', 'admin'];
 
-const channelLabel = (ch) => ({ facebook: 'Facebook', viber: 'Viber', line: 'LINE' }[ch] || ch);
+const channelLabel = (ch) => ({ facebook: 'Facebook', viber: 'Viber', line: 'LINE', outlook: 'Outlook' }[ch] || ch);
 
 export default function Inbox() {
   const { user } = useAuth();

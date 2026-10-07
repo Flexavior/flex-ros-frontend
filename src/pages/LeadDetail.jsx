@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api/client.js';
+import MicrosoftEmailPanel from '../components/MicrosoftEmailPanel.jsx';
 
 const STATUSES = ['new', 'contacted', 'qualified', 'appointment', 'converted', 'lost'];
 
@@ -92,7 +93,7 @@ export default function LeadDetail() {
             </select>
           </div>
           <p className="kpi-sub">Last status change: {lead.status_updated_at ? new Date(lead.status_updated_at).toLocaleString() : '—'}</p>
-          <p className="kpi-sub">Source: {lead.source || '—'} · Phone: {lead.phone || '—'}</p>
+          <p className="kpi-sub">Source: {lead.source || '—'} · Phone: {lead.phone || '—'} · Email: {lead.email || '—'}</p>
           {lead.customer && <p>Client: <Link to={`/customers/${lead.customer.id}`}>{lead.customer.client_id}</Link></p>}
         </div>
 
@@ -126,6 +127,8 @@ export default function LeadDetail() {
           </form>
         </div>
       </div>
+
+      <MicrosoftEmailPanel sendUrl={`/leads/${id}/email`} disabled={!lead.email} />
 
       <div className="grid cols-2">
         <div className="card">
