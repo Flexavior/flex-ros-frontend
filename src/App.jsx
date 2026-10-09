@@ -16,8 +16,26 @@ import UserProvisioning from './pages/UserProvisioning.jsx';
 import Inbox from './pages/Inbox.jsx';
 import Documents from './pages/Documents.jsx';
 import Layout from './components/Layout.jsx';
+import { canUseCrmModules, INBOX_ROLES, isAdminUser } from './auth/crmAccess.js';
 
-const INBOX_ROLES = ['customer_service', 'sales', 'staff', 'senior_staff', 'supervisor', 'senior_management', 'ceo', 'admin'];
+function CrmOperational({ children }) {
+  const { user } = useAuth();
+  if (isAdminUser(user)) {
+    return <Navigate to="/admin" replace />;
+  }
+  if (!canUseCrmModules(user)) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
+function AdminDefaultIndex() {
+  const { user } = useAuth();
+  if (isAdminUser(user)) {
+    return <Navigate to="/admin" replace />;
+  }
+  return <Dashboard />;
+}
 
 function Protected({ children, roles = null }) {
   const { user, loading } = useAuth();
@@ -40,20 +58,22 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/auth/sso/callback" element={<SsoCallback />} />
       <Route element={<Protected><Layout /></Protected>}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/leads" element={<Leads />} />
-        <Route path="/leads/:id" element={<LeadDetail />} />
-        <Route path="/customers" element={<Customers />} />
-        <Route path="/customers/:id" element={<CustomerDetail />} />
-        <Route path="/documents" element={<Documents />} />
-        <Route path="/products" element={<Products />} />
-        <Route path="/marketing" element={<Marketing />} />
+        <Route path="/" element={<CrmOperational><AdminDefaultIndex /></CrmOperational>} />
+        <Route path="/leads" element={<CrmOperational><Leads /></CrmOperational>} />
+        <Route path="/leads/:id" element={<CrmOperational><LeadDetail /></CrmOperational>} />
+        <Route path="/customers" element={<CrmOperational><Customers /></CrmOperational>} />
+        <Route path="/customers/:id" element={<CrmOperational><CustomerDetail /></CrmOperational>} />
+        <Route path="/documents" element={<CrmOperational><Documents /></CrmOperational>} />
+        <Route path="/products" element={<CrmOperational><Products /></CrmOperational>} />
+        <Route path="/marketing" element={<CrmOperational><Marketing /></CrmOperational>} />
         <Route
           path="/inbox"
           element={
-            <Protected roles={INBOX_ROLES}>
-              <Inbox />
-            </Protected>
+            <CrmOperational>
+              <Protected roles={INBOX_ROLES}>
+                <Inbox />
+              </Protected>
+            </CrmOperational>
           }
         />
         <Route

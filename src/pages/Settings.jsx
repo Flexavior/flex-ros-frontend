@@ -2,6 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../api/client.js';
 
+const ADMIN_PICKLIST_KEYS = [
+  'customer_segment',
+  'industry',
+  'geo_location',
+  'lead_source',
+  'product_interest',
+  'current_stage',
+];
+
 export default function Settings() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [checklists, setChecklists] = useState({});
@@ -81,7 +90,8 @@ export default function Settings() {
         });
       }
       const pickPayload = {};
-      for (const [key, text] of Object.entries(picklists)) {
+      for (const key of ADMIN_PICKLIST_KEYS) {
+        const text = picklists[key];
         if (typeof text === 'string') {
           pickPayload[key] = text.split('\n').map((l) => l.trim()).filter(Boolean);
         } else if (Array.isArray(text)) {
@@ -104,6 +114,38 @@ export default function Settings() {
 
   const setPicklistText = (key, text) => {
     setPicklists({ ...picklists, [key]: text });
+  };
+
+  const reloadPicklistKey = async (key) => {
+    setError(null);
+    try {
+      const res = await api.get('/settings/lead-picklists');
+      const next = res.data?.[key];
+      if (Array.isArray(next)) {
+        setPicklists((prev) => ({ ...prev, [key]: next }));
+        setMessage(`Reloaded "${key}" from server.`);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Reload failed.');
+    }
+  };
+
+  const restorePicklistDefaults = async (key) => {
+    if (!window.confirm(`Restore "${key}" to product defaults? This overwrites saved options for this list only.`)) {
+      return;
+    }
+    setError(null);
+    try {
+      const res = await api.post(`/settings/lead-picklists/restore/${key}`);
+      if (res.data?.picklists) {
+        setPicklists(res.data.picklists);
+      } else if (Array.isArray(res.data?.options)) {
+        setPicklists((prev) => ({ ...prev, [key]: res.data.options }));
+      }
+      setMessage(`Restored defaults for "${key}".`);
+    } catch (err) {
+      setError(err.response?.data?.message || err.response?.data?.errors?.[key]?.[0] || 'Restore failed.');
+    }
   };
 
   return (
@@ -169,9 +211,15 @@ export default function Settings() {
           Segment = org size; Industry = sector name; Geo = region.
         </p>
         <div className="grid cols-3">
-          {['customer_segment', 'industry', 'geo_location', 'lead_source', 'product_interest', 'current_stage'].map((key) => (
+          {ADMIN_PICKLIST_KEYS.map((key) => (
             <div className="form-row" key={key}>
-              <label>{key.replace(/_/g, ' ')}</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                <label>{key.replace(/_/g, ' ')}</label>
+                <span style={{ display: 'flex', gap: 6 }}>
+                  <button type="button" className="secondary small" onClick={() => reloadPicklistKey(key)}>Reload</button>
+                  <button type="button" className="secondary small" onClick={() => restorePicklistDefaults(key)}>Restore defaults</button>
+                </span>
+              </div>
               <textarea
                 rows={8}
                 value={picklistText(key)}

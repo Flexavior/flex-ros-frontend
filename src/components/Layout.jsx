@@ -1,14 +1,14 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-
-const INBOX_ROLES = ['customer_service', 'sales', 'staff', 'senior_staff', 'supervisor', 'senior_management', 'ceo', 'admin'];
+import { canUseCrmModules, INBOX_ROLES, isAdminUser } from '../auth/crmAccess.js';
 
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const showInbox = INBOX_ROLES.includes(user?.role?.code);
-  const isAdmin = user?.role?.code === 'admin';
+  const isAdmin = isAdminUser(user);
+  const showCrm = canUseCrmModules(user);
+  const showInbox = showCrm && INBOX_ROLES.includes(user?.role?.code);
   const canProvision = ['admin', 'senior_management', 'ceo'].includes(user?.role?.code);
 
   const handleLogout = async () => {
@@ -22,13 +22,17 @@ export default function Layout() {
         <div className="brand">MSS-CRM</div>
         <nav>
           {isAdmin && <NavLink to="/admin">Admin Console</NavLink>}
-          <NavLink to="/" end>Dashboard</NavLink>
-          <NavLink to="/leads">Leads</NavLink>
-          {showInbox && <NavLink to="/inbox">Inbox</NavLink>}
-          <NavLink to="/customers">Customers</NavLink>
-          <NavLink to="/documents">Documents</NavLink>
-          <NavLink to="/products">Products &amp; Services</NavLink>
-          <NavLink to="/marketing">Marketing</NavLink>
+          {showCrm && (
+            <>
+              <NavLink to="/" end>Dashboard</NavLink>
+              <NavLink to="/leads">Leads</NavLink>
+              {showInbox && <NavLink to="/inbox">Inbox</NavLink>}
+              <NavLink to="/customers">Customers</NavLink>
+              <NavLink to="/documents">Documents</NavLink>
+              <NavLink to="/products">Products &amp; Services</NavLink>
+              <NavLink to="/marketing">Marketing</NavLink>
+            </>
+          )}
           {canProvision && <NavLink to="/people">Users</NavLink>}
           {isAdmin && <NavLink to="/settings">System Settings</NavLink>}
         </nav>

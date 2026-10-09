@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client.js';
 import ListPagination from '../components/ListPagination.jsx';
+import { customerStatusLabel, normalizeCustomerStatus } from '../utils/customerStatus.js';
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
@@ -23,11 +24,7 @@ export default function Customers() {
 
   useEffect(load, [page, perPage]);
 
-  const statusLabel = (s) => {
-    if (s === 'churned') return 'Inactive';
-    if (s === 'onboarding') return 'Onboarding';
-    return 'Active';
-  };
+  const statusLabel = (s) => customerStatusLabel(normalizeCustomerStatus(s));
 
   return (
     <div>

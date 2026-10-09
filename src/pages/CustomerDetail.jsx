@@ -4,6 +4,7 @@ import api from '../api/client.js';
 import MicrosoftEmailPanel from '../components/MicrosoftEmailPanel.jsx';
 import PicklistSelect from '../components/PicklistSelect.jsx';
 import { useMicrosoftOAuthReturn } from '../hooks/useMicrosoftOAuthReturn.js';
+import { normalizeCustomerStatus } from '../utils/customerStatus.js';
 
 export default function CustomerDetail() {
   const { id } = useParams();
@@ -41,7 +42,7 @@ export default function CustomerDetail() {
         email: c.email || '',
         phone: c.phone || '',
         address: c.address || '',
-        status: c.status || 'active',
+        status: normalizeCustomerStatus(c.status),
         customer_segment: c.customer_segment || '',
         industry: c.industry || '',
         geo_location: c.geo_location || '',

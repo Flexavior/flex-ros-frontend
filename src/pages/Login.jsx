@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../api/client.js';
+import { resolvePostLoginPath } from '../auth/crmAccess.js';
 
 function safeReturnUrl(raw) {
   if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return '/';
@@ -12,7 +13,8 @@ export default function Login() {
   const { login, user, loading } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const returnUrl = safeReturnUrl(searchParams.get('returnUrl'));
+  const rawReturn = searchParams.get('returnUrl');
+  const returnUrl = safeReturnUrl(rawReturn);
   const [email, setEmail] = useState('ceo@mss.test');
   const [password, setPassword] = useState('password');
   const [error, setError] = useState(null);
@@ -28,17 +30,17 @@ export default function Login() {
 
   useEffect(() => {
     if (!loading && user) {
-      navigate(returnUrl, { replace: true });
+      navigate(resolvePostLoginPath(user, rawReturn, returnUrl), { replace: true });
     }
-  }, [loading, user, navigate, returnUrl]);
+  }, [loading, user, navigate, returnUrl, rawReturn]);
 
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      await login(email, password);
-      navigate(returnUrl, { replace: true });
+      const me = await login(email, password);
+      navigate(resolvePostLoginPath(me, rawReturn, returnUrl), { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed. Check your credentials.');
     } finally {

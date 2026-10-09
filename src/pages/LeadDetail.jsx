@@ -196,6 +196,21 @@ export default function LeadDetail() {
       </div>
       {message && <p className="success-text">{message}</p>}
       {error && <p className="error-text">{error}</p>}
+      {(lead.legacy_picklist_warnings?.length > 0) && (
+        <div className="card" style={{ marginBottom: 16, borderColor: 'var(--warning, #c90)' }}>
+          <strong>Legacy picklist values</strong>
+          <p style={{ margin: '8px 0 0' }}>
+            This lead has stored values that are not in the current Settings catalogues. They still display here; update the lead or adjust Settings to match.
+          </p>
+          <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
+            {lead.legacy_picklist_warnings.map((w) => (
+              <li key={`${w.field}-${w.value}`}>
+                <code>{w.field.replace(/_/g, ' ')}</code>: {w.value}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <LeadPipelineRibbon currentStage={lead.current_stage} converted={lead.status === 'converted'} />
 
