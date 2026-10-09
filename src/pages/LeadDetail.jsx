@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api/client.js';
 import MicrosoftEmailPanel from '../components/MicrosoftEmailPanel.jsx';
+import HelpIcon from '../components/HelpIcon.jsx';
+import { help } from '../content/helpText.js';
 
 export default function LeadDetail() {
   const { id } = useParams();
@@ -116,7 +118,10 @@ export default function LeadDetail() {
 
       <div className="grid cols-3">
         <div className="card">
-          <h3>Pipeline Stage</h3>
+          <h3>
+            Pipeline Stage
+            <HelpIcon text={help.leadPipelineStage} label="Help: pipeline stage" />
+          </h3>
           <p><span className="badge pending">{lead.current_stage || lead.status}</span></p>
           <div className="form-row">
             <label>Move to</label>
@@ -166,7 +171,10 @@ export default function LeadDetail() {
 
       <div className="grid cols-2">
         <div className="card">
-          <h3>Log Engagement (follow-up)</h3>
+          <h3>
+            Log Engagement (follow-up)
+            <HelpIcon text={help.leadFollowUp} label="Help: follow-up" />
+          </h3>
           <form onSubmit={logEngagement}>
             <div className="form-row"><label>Channel</label>
               <select value={engagement.channel} onChange={(e) => setEngagement({ ...engagement, channel: e.target.value })}>

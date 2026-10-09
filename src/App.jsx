@@ -11,6 +11,8 @@ import CustomerDetail from './pages/CustomerDetail.jsx';
 import Products from './pages/Products.jsx';
 import Marketing from './pages/Marketing.jsx';
 import Settings from './pages/Settings.jsx';
+import AdminConsole from './pages/AdminConsole.jsx';
+import UserProvisioning from './pages/UserProvisioning.jsx';
 import Inbox from './pages/Inbox.jsx';
 import Layout from './components/Layout.jsx';
 
@@ -41,6 +43,22 @@ export default function App() {
           element={
             <Protected roles={INBOX_ROLES}>
               <Inbox />
+            </Protected>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <Protected roles={['admin']}>
+              <AdminConsole />
+            </Protected>
+          }
+        />
+        <Route
+          path="/people"
+          element={
+            <Protected roles={['admin', 'senior_management', 'ceo']}>
+              <UserProvisioning />
             </Protected>
           }
         />

@@ -1,6 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client.js';
+import HelpIcon from '../components/HelpIcon.jsx';
+import LeadJourneyGuide from '../components/LeadJourneyGuide.jsx';
+import { help } from '../content/helpText.js';
+
+function formatLeadCustomValue(lead, field) {
+  const raw = lead.custom_fields?.[field.field_key];
+  if (raw === null || raw === undefined || raw === '') return '—';
+  if (field.field_type === 'boolean') return raw ? 'Yes' : 'No';
+  return String(raw);
+}
 
 export default function Leads() {
   const [leads, setLeads] = useState([]);
@@ -19,6 +29,7 @@ export default function Leads() {
     custom_fields: {},
   });
   const [error, setError] = useState(null);
+  const [metrics, setMetrics] = useState(null);
 
   const load = () => {
     const params = {};
@@ -46,6 +57,12 @@ export default function Leads() {
 
   useEffect(load, [statusFilter, sourceFilter]);
 
+  useEffect(() => {
+    api.get('/dashboard/metrics')
+      .then((res) => setMetrics(res.data))
+      .catch(() => {});
+  }, []);
+
   const submit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -71,12 +88,45 @@ export default function Leads() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 className="page-title">Leads</h1>
+        <h1 className="page-title">
+          Leads
+          <HelpIcon text={help.leadsOverview} label="Help: leads list" />
+        </h1>
         <button onClick={() => setShowForm(!showForm)}>{showForm ? 'Close' : '+ New Lead'}</button>
       </div>
 
+      {metrics && (
+        <div className="leads-kpi-strip" aria-label="Lead pipeline summary">
+          <div className="grid cols-4 leads-kpi-grid">
+            <div className="card kpi kpi-compact">
+              <div className="kpi-label">Open leads</div>
+              <div className="kpi-value">{metrics.leads?.open ?? 0}</div>
+            </div>
+            <div className="card kpi kpi-compact">
+              <div className="kpi-label">Conversion</div>
+              <div className="kpi-value">{metrics.conversion_rate ?? 0}%</div>
+            </div>
+            <div className="card kpi kpi-compact">
+              <div className="kpi-label">Stale</div>
+              <div className="kpi-value">{metrics.stale_tasks?.count ?? 0}</div>
+              <HelpIcon text={help.leadStale} label="Help: stale leads" />
+            </div>
+            <div className="card kpi kpi-compact">
+              <div className="kpi-label">Appointments (7d)</div>
+              <div className="kpi-value">{metrics.appointments_this_week ?? 0}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <LeadJourneyGuide />
+
       {showForm && (
         <form className="card" onSubmit={submit}>
+          <h3 className="form-section-title">
+            New lead
+            <HelpIcon text={help.leadGeneration} label="Help: create lead" />
+          </h3>
           <div className="grid cols-3">
             <div className="form-row"><label>Name *</label>
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
@@ -99,6 +149,10 @@ export default function Leads() {
           </div>
           {(schema.custom_fields?.lead || []).length > 0 && (
             <div className="grid cols-3">
+              <p className="kpi-sub" style={{ gridColumn: '1 / -1' }}>
+                Custom fields
+                <HelpIcon text={help.leadCustomFields} label="Help: custom fields" />
+              </p>
               {schema.custom_fields.lead.map((field) => (
                 <div className="form-row" key={field.field_key}>
                   <label>{field.label}</label>
@@ -112,6 +166,24 @@ export default function Leads() {
                     >
                       <option value="">Select...</option>
                       {(field.options || []).map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  ) : field.field_type === 'boolean' ? (
+                    <select
+                      value={form.custom_fields[field.field_key] === true ? 'true' : form.custom_fields[field.field_key] === false ? 'false' : ''}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setForm({
+                          ...form,
+                          custom_fields: {
+                            ...form.custom_fields,
+                            [field.field_key]: v === '' ? undefined : v === 'true',
+                          },
+                        });
+                      }}
+                    >
+                      <option value="">Select...</option>
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
                     </select>
                   ) : (
                     <input
@@ -149,25 +221,45 @@ export default function Leads() {
           </div>
         </div>
         {error && <p className="error-text">{error}</p>}
-        <table>
-          <thead>
-            <tr><th>Name</th><th>Company</th><th>Lead Source</th><th>Current Stage</th><th>Owner</th><th>Client ID</th><th>Last change</th><th></th></tr>
-          </thead>
-          <tbody>
-            {leads.map((l) => (
-              <tr key={l.id}>
-                <td><Link to={`/leads/${l.id}`}>{l.name}</Link></td>
-                <td>{l.company}</td>
-                <td>{l.lead_source || l.source || '—'}</td>
-                <td><span className="badge pending">{l.current_stage || l.status || '—'}</span></td>
-                <td>{l.owner?.name}</td>
-                <td>{l.customer?.client_id}</td>
-                <td>{l.status_updated_at ? new Date(l.status_updated_at).toLocaleDateString() : '—'}</td>
+        <div className="table-scroll" role="region" aria-label="Leads list">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Company</th>
+                <th scope="col">Lead Source</th>
+                <th scope="col">Current Stage</th>
+                {(schema.custom_fields?.lead || []).map((field) => (
+                  <th scope="col" key={field.field_key}>{field.label}</th>
+                ))}
+                <th scope="col">Owner</th>
+                <th scope="col">Client ID</th>
+                <th scope="col">Last change</th>
               </tr>
-            ))}
-            {!leads.length && <tr><td colSpan={8} className="kpi-sub">No leads yet.</td></tr>}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {leads.map((l) => (
+                <tr key={l.id}>
+                  <td><Link to={`/leads/${l.id}`}>{l.name}</Link></td>
+                  <td>{l.company || '—'}</td>
+                  <td>{l.lead_source || l.source || '—'}</td>
+                  <td><span className="badge pending">{l.current_stage || l.status || '—'}</span></td>
+                  {(schema.custom_fields?.lead || []).map((field) => (
+                    <td key={field.field_key}>{formatLeadCustomValue(l, field)}</td>
+                  ))}
+                  <td>{l.owner?.name || '—'}</td>
+                  <td>{l.customer?.client_id || '—'}</td>
+                  <td>{l.status_updated_at ? new Date(l.status_updated_at).toLocaleDateString() : '—'}</td>
+                </tr>
+              ))}
+              {!leads.length && (
+                <tr>
+                  <td colSpan={8 + (schema.custom_fields?.lead || []).length} className="kpi-sub">No leads yet.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

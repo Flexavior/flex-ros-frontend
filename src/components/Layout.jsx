@@ -8,6 +8,8 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const showInbox = INBOX_ROLES.includes(user?.role?.code);
+  const isAdmin = user?.role?.code === 'admin';
+  const canProvision = ['admin', 'senior_management', 'ceo'].includes(user?.role?.code);
 
   const handleLogout = async () => {
     await logout();
@@ -19,13 +21,15 @@ export default function Layout() {
       <aside className="sidebar">
         <div className="brand">MSS-CRM</div>
         <nav>
+          {isAdmin && <NavLink to="/admin">Admin Console</NavLink>}
           <NavLink to="/" end>Dashboard</NavLink>
           <NavLink to="/leads">Leads</NavLink>
           {showInbox && <NavLink to="/inbox">Inbox</NavLink>}
           <NavLink to="/customers">Customers</NavLink>
           <NavLink to="/products">Products &amp; Services</NavLink>
           <NavLink to="/marketing">Marketing</NavLink>
-          {user?.role?.code === 'admin' && <NavLink to="/settings">System Settings</NavLink>}
+          {canProvision && <NavLink to="/people">Users</NavLink>}
+          {isAdmin && <NavLink to="/settings">System Settings</NavLink>}
         </nav>
       </aside>
       <div className="main">
