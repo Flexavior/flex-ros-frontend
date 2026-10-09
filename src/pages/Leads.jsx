@@ -30,6 +30,8 @@ export default function Leads() {
     customer_segment: '',
     industry: '',
     geo_location: '',
+    interest_level: '',
+    buying_timeline: '',
     notes: '',
     custom_fields: {},
   });
@@ -183,6 +185,18 @@ export default function Leads() {
               value={form.geo_location}
               options={schema.picklists?.geo_location}
               onChange={(v) => setForm({ ...form, geo_location: v })}
+            />
+            <PicklistSelect
+              label="Potential (yield)"
+              value={form.interest_level}
+              options={schema.picklists?.interest_level}
+              onChange={(v) => setForm({ ...form, interest_level: v })}
+            />
+            <PicklistSelect
+              label="Buying timeline"
+              value={form.buying_timeline}
+              options={schema.picklists?.buying_timeline}
+              onChange={(v) => setForm({ ...form, buying_timeline: v })}
             />
             <div className="form-row"><label>Notes</label>
               <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>

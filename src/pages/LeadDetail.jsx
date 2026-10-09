@@ -27,6 +27,7 @@ export default function LeadDetail() {
   });
   const [appointment, setAppointment] = useState({ title: '', scheduled_at: '', location: '' });
   const [convertProducts, setConvertProducts] = useState([]);
+  const [convertAgreedPrices, setConvertAgreedPrices] = useState({});
   const [convertClientId, setConvertClientId] = useState('');
   const [products, setProducts] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -35,6 +36,12 @@ export default function LeadDetail() {
     industry: '',
     geo_location: '',
     product_interest: '',
+  });
+  const [qualify, setQualify] = useState({
+    interest_level: '',
+    buying_timeline: '',
+    primary_contact_method: '',
+    contact_role: '',
   });
 
   const load = () => {
@@ -46,6 +53,12 @@ export default function LeadDetail() {
           industry: res.data.industry || '',
           geo_location: res.data.geo_location || '',
           product_interest: res.data.product_interest || '',
+        });
+        setQualify({
+          interest_level: res.data.interest_level || '',
+          buying_timeline: res.data.buying_timeline || '',
+          primary_contact_method: res.data.primary_contact_method || '',
+          contact_role: res.data.contact_role || '',
         });
         setContacts((res.data.contacts || []).map((c) => ({ ...c, is_primary: !!c.is_primary })));
       })
@@ -93,6 +106,17 @@ export default function LeadDetail() {
     }
   };
 
+  const saveQualify = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put(`/leads/${id}`, qualify);
+      setMessage('Qualification fields updated.');
+      load();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not save qualification fields.');
+    }
+  };
+
   const logEngagement = async (e) => {
     e.preventDefault();
     try {
@@ -130,6 +154,14 @@ export default function LeadDetail() {
   const convert = async () => {
     try {
       const payload = { product_service_ids: convertProducts.map(Number) };
+      const agreed_prices = {};
+      convertProducts.forEach((pid) => {
+        const raw = convertAgreedPrices[pid];
+        if (raw !== undefined && raw !== '') {
+          agreed_prices[pid] = Number(raw);
+        }
+      });
+      if (Object.keys(agreed_prices).length) payload.agreed_prices = agreed_prices;
       if (convertClientId.trim()) payload.client_id = convertClientId.trim();
       const res = await api.post(`/leads/${id}/convert`, payload);
       setMessage(`Converted! Client ID: ${res.data.client_id}`);
@@ -279,10 +311,46 @@ export default function LeadDetail() {
               </div>
               <div className="form-row">
                 <label>Products / Services</label>
-                <select multiple value={convertProducts} onChange={(e) => setConvertProducts([...e.target.selectedOptions].map((o) => o.value))} style={{ height: 110 }}>
-                  {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                <select
+                  multiple
+                  value={convertProducts}
+                  onChange={(e) => {
+                    const next = [...e.target.selectedOptions].map((o) => o.value);
+                    setConvertProducts(next);
+                    setConvertAgreedPrices((prev) => {
+                      const kept = {};
+                      next.forEach((pid) => {
+                        if (prev[pid] !== undefined) kept[pid] = prev[pid];
+                      });
+                      return kept;
+                    });
+                  }}
+                  style={{ height: 110 }}
+                >
+                  {products.map((p) => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
                 </select>
               </div>
+              {convertProducts.length > 0 && (
+                <div className="form-row">
+                  <label>Agreed price per product (optional)</label>
+                  {convertProducts.map((pid) => {
+                    const product = products.find((p) => String(p.id) === String(pid));
+                    return (
+                      <div key={pid} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                        <span style={{ minWidth: 120 }}>{product?.name || pid}</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder={product?.price ? `List ${product.price}` : 'Amount'}
+                          value={convertAgreedPrices[pid] ?? ''}
+                          onChange={(e) => setConvertAgreedPrices({ ...convertAgreedPrices, [pid]: e.target.value })}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               <button onClick={convert}>Convert &amp; Generate Client ID</button>
             </>
           )}
@@ -348,8 +416,38 @@ export default function LeadDetail() {
 
         <div className="card" id="lead-section-qualify">
           <h3>
+            Qualify
+            <HelpIcon text={help.leadFollowUp} label="Help: qualify" />
+          </h3>
+          <form onSubmit={saveQualify} style={{ marginBottom: 16 }}>
+            <PicklistSelect
+              label="Potential (yield)"
+              value={qualify.interest_level}
+              options={schema.picklists?.interest_level}
+              onChange={(v) => setQualify({ ...qualify, interest_level: v })}
+            />
+            <PicklistSelect
+              label="Buying timeline"
+              value={qualify.buying_timeline}
+              options={schema.picklists?.buying_timeline}
+              onChange={(v) => setQualify({ ...qualify, buying_timeline: v })}
+            />
+            <PicklistSelect
+              label="Primary contact method"
+              value={qualify.primary_contact_method}
+              options={schema.picklists?.contact_method}
+              onChange={(v) => setQualify({ ...qualify, primary_contact_method: v })}
+            />
+            <PicklistSelect
+              label="Primary contact role"
+              value={qualify.contact_role}
+              options={schema.picklists?.contact_role}
+              onChange={(v) => setQualify({ ...qualify, contact_role: v })}
+            />
+            <button type="submit" className="small">Save qualification</button>
+          </form>
+          <h3>
             Log Engagement (follow-up)
-            <HelpIcon text={help.leadFollowUp} label="Help: follow-up" />
           </h3>
           {lead.needs_qualify_review && (
             <p className="error-text">

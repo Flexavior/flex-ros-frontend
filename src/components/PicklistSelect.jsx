@@ -1,6 +1,15 @@
 import React from 'react';
 
 /** Reusable schema-driven dropdown — options from GET /leads/schema picklists. */
+function withLegacyOption(options, value) {
+  const list = Array.isArray(options) ? options : [];
+  const v = value || '';
+  if (v && !list.includes(v)) {
+    return [v, ...list];
+  }
+  return list;
+}
+
 export default function PicklistSelect({
   label,
   value,
@@ -10,8 +19,10 @@ export default function PicklistSelect({
   emptyLabel = 'Select…',
   required = false,
   id,
+  preserveUnknownValue = true,
 }) {
   const selectId = id || `picklist-${label?.toLowerCase().replace(/\s+/g, '-')}`;
+  const optionList = preserveUnknownValue ? withLegacyOption(options, value) : options;
 
   return (
     <div className="form-row">
@@ -23,7 +34,7 @@ export default function PicklistSelect({
         required={required}
       >
         {allowEmpty && <option value="">{emptyLabel}</option>}
-        {options.map((opt) => (
+        {optionList.map((opt) => (
           <option key={opt} value={opt}>{opt}</option>
         ))}
       </select>
