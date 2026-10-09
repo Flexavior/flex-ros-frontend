@@ -1,14 +1,60 @@
 :root {
+  /* Core surfaces and text */
   --bg: #f4f6fb;
   --panel: #ffffff;
   --border: #e3e8f0;
   --text: #1c2434;
   --muted: #6b7688;
-  --primary: #2456e6;
-  --primary-dark: #1a3fae;
-  --success: #1e9e5a;
-  --warning: #d98a06;
-  --danger: #d64545;
+
+  /* Brand (from MSS logo) */
+  --brand-blue: #2f6da6;
+  --brand-blue-dark: #0d2146;
+  --brand-gold: #eed78b;
+  --brand-gold-deep: #c9ad5e;
+  --primary: var(--brand-blue);
+  --primary-dark: var(--brand-blue-dark);
+
+  /* Feedback */
+  --success: var(--brand-blue);
+  --warning: var(--brand-gold-deep);
+  --danger: var(--brand-gold-deep);
+
+  /* Sidebar */
+  --sidebar-bg: var(--brand-blue-dark);
+  --sidebar-text: var(--brand-gold);
+  --sidebar-border: #1f3b6b;
+  --sidebar-hover: #163561;
+
+  /* Neutrals / utility */
+  --white: #ffffff;
+  --surface-soft: #eef2f9;
+  --surface-soft-hover: #e2e8f2;
+  --surface-muted: #f1f5f9;
+  --surface-hover: #f8fafc;
+  --surface-active: #eef2ff;
+
+  /* Status backgrounds */
+  --status-info-bg: #d9e8f5;
+  --status-warning-bg: #f9efcc;
+  --status-success-bg: #d9e8f5;
+  --status-success-soft-bg: #edf3f9;
+  --status-error-bg: #f9efcc;
+  --status-purple-bg: #edf3f9;
+  --status-outlook-bg: #edf3f9;
+  --status-closed-bg: #e5edf4;
+
+  /* Status text colors */
+  --status-info-text: var(--brand-blue-dark);
+  --status-warning-text: #8a6f2f;
+  --status-success-text: var(--brand-blue-dark);
+  --status-error-text: #8a6f2f;
+  --status-purple-text: var(--brand-blue);
+  --status-unassigned-text: #4e6482;
+  --status-closed-text: #5c7393;
+  --status-facebook-text: var(--brand-blue);
+  --status-viber-text: var(--brand-blue);
+  --status-line-text: var(--brand-blue);
+  --status-outlook-text: var(--brand-blue);
 }
 
 * { box-sizing: border-box; }
@@ -28,33 +74,33 @@ a:hover { text-decoration: underline; }
 
 .sidebar {
   width: 220px;
-  background: #101828;
-  color: #cbd5e1;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
   display: flex;
   flex-direction: column;
   padding: 16px 0;
 }
 
 .sidebar .brand {
-  color: #fff;
+  color: var(--brand-gold);
   font-weight: 700;
   font-size: 16px;
   padding: 0 20px 16px;
-  border-bottom: 1px solid #1f2937;
+  border-bottom: 1px solid var(--sidebar-border);
   margin-bottom: 8px;
 }
 
 .sidebar nav { display: flex; flex-direction: column; }
 
 .sidebar nav a {
-  color: #cbd5e1;
+  color: var(--sidebar-text);
   padding: 10px 20px;
   font-size: 13px;
 }
 
 .sidebar nav a:hover, .sidebar nav a.active {
-  background: #1f2937;
-  color: #fff;
+  background: var(--sidebar-hover);
+  color: var(--white);
   text-decoration: none;
 }
 
@@ -89,7 +135,7 @@ a:hover { text-decoration: underline; }
 
 .role-chip {
   margin-left: 8px;
-  background: #eef2f9;
+  background: var(--surface-soft);
   color: var(--muted);
   border-radius: 10px;
   padding: 2px 8px;
@@ -114,20 +160,20 @@ th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size
   font-weight: 600;
 }
 
-.badge.new { background: #e0ecff; color: #2456e6; }
-.badge.contacted { background: #fff4dd; color: #b06f00; }
-.badge.qualified { background: #e8f7ee; color: #1e9e5a; }
-.badge.appointment { background: #f3e8ff; color: #7c3aed; }
-.badge.converted { background: #dcfce7; color: #15803d; }
-.badge.lost { background: #fee2e2; color: #b91c1c; }
-.badge.pending { background: #fff4dd; color: #b06f00; }
-.badge.approved { background: #dcfce7; color: #15803d; }
-.badge.rejected { background: #fee2e2; color: #b91c1c; }
-.badge.stale { background: #fee2e2; color: #b91c1c; }
+.badge.new { background: var(--status-info-bg); color: var(--status-info-text); }
+.badge.contacted { background: var(--status-warning-bg); color: var(--status-warning-text); }
+.badge.qualified { background: var(--status-success-soft-bg); color: var(--success); }
+.badge.appointment { background: var(--status-purple-bg); color: var(--status-purple-text); }
+.badge.converted { background: var(--status-success-bg); color: var(--status-success-text); }
+.badge.lost { background: var(--status-error-bg); color: var(--status-error-text); }
+.badge.pending { background: var(--status-warning-bg); color: var(--status-warning-text); }
+.badge.approved { background: var(--status-success-bg); color: var(--status-success-text); }
+.badge.rejected { background: var(--status-error-bg); color: var(--status-error-text); }
+.badge.stale { background: var(--status-error-bg); color: var(--status-error-text); }
 
 button, .btn {
   background: var(--primary);
-  color: #fff;
+  color: var(--white);
   border: none;
   border-radius: 6px;
   padding: 8px 14px;
@@ -135,8 +181,8 @@ button, .btn {
   cursor: pointer;
 }
 button:hover { background: var(--primary-dark); }
-button.secondary { background: #eef2f9; color: var(--text); }
-button.secondary:hover { background: #e2e8f2; }
+button.secondary { background: var(--surface-soft); color: var(--text); }
+button.secondary:hover { background: var(--surface-soft-hover); }
 button.danger { background: var(--danger); }
 button.small { padding: 4px 10px; font-size: 12px; }
 
@@ -160,11 +206,11 @@ input, select, textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #101828 0%, #2456e6 100%);
+  background: linear-gradient(135deg, var(--brand-blue-dark) 0%, var(--brand-blue) 100%);
 }
 
 .login-card {
-  background: #fff;
+  background: var(--white);
   padding: 32px;
   border-radius: 12px;
   width: 360px;
@@ -173,7 +219,7 @@ input, select, textarea {
 .checklist-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
 .checklist-item input[type="checkbox"] { width: auto; }
 
-.progress-bar { background: #eef2f9; border-radius: 6px; height: 8px; overflow: hidden; }
+.progress-bar { background: var(--surface-soft); border-radius: 6px; height: 8px; overflow: hidden; }
 .progress-bar > div { background: var(--success); height: 100%; }
 
 /* Inbox — single pane over Facebook / Viber / LINE */
@@ -181,8 +227,8 @@ input, select, textarea {
 .inbox-filters { display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
 .inbox-conv-list { list-style: none; margin: 0; padding: 0; max-height: 560px; overflow-y: auto; }
 .inbox-conv-item { padding: 10px 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
-.inbox-conv-item:hover { background: #f8fafc; }
-.inbox-conv-item.active { background: #eef2ff; border-left: 3px solid var(--primary); }
+.inbox-conv-item:hover { background: var(--surface-hover); }
+.inbox-conv-item.active { background: var(--surface-active); border-left: 3px solid var(--primary); }
 .inbox-conv-item.unread strong { font-weight: 700; }
 .inbox-conv-header { display: flex; gap: 6px; margin-bottom: 4px; }
 .inbox-thread-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
@@ -191,18 +237,18 @@ input, select, textarea {
 .inbox-actions select { width: auto; min-width: 140px; }
 .inbox-messages { display: flex; flex-direction: column; gap: 10px; max-height: 360px; overflow-y: auto; margin-bottom: 16px; }
 .inbox-msg { max-width: 80%; padding: 10px 12px; border-radius: 10px; font-size: 13px; }
-.inbox-msg.in { align-self: flex-start; background: #f1f5f9; }
-.inbox-msg.out { align-self: flex-end; background: #eef2ff; }
+.inbox-msg.in { align-self: flex-start; background: var(--surface-muted); }
+.inbox-msg.out { align-self: flex-end; background: var(--surface-active); }
 .inbox-msg-meta { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
 .inbox-reply { display: flex; gap: 8px; align-items: flex-end; }
 .inbox-reply textarea { flex: 1; resize: vertical; }
 .inbox-history { margin-top: 16px; font-size: 12px; color: var(--muted); }
 .inbox-history ul { margin: 8px 0 0; padding-left: 18px; }
 
-.badge.unassigned { background: #f1f5f9; color: #475569; }
-.badge.open { background: #e0ecff; color: #2456e6; }
-.badge.closed { background: #e2e8f0; color: #64748b; }
-.badge.channel-facebook { background: #e0ecff; color: #1877f2; }
-.badge.channel-viber { background: #f3e8ff; color: #7360f2; }
-.badge.channel-line { background: #dcfce7; color: #06c755; }
-.badge.channel-outlook { background: #e8f4fc; color: #0078d4; }
+.badge.unassigned { background: var(--surface-muted); color: var(--status-unassigned-text); }
+.badge.open { background: var(--status-info-bg); color: var(--status-info-text); }
+.badge.closed { background: var(--status-closed-bg); color: var(--status-closed-text); }
+.badge.channel-facebook { background: var(--status-info-bg); color: var(--status-facebook-text); }
+.badge.channel-viber { background: var(--status-purple-bg); color: var(--status-viber-text); }
+.badge.channel-line { background: var(--status-success-bg); color: var(--status-line-text); }
+.badge.channel-outlook { background: var(--status-outlook-bg); color: var(--status-outlook-text); }

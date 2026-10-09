@@ -19,11 +19,20 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  const beginSession = (token, me) => {
+    localStorage.setItem('mss_token', token);
+    setUser(me);
+    return me;
+  };
+
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
-    localStorage.setItem('mss_token', res.data.token);
-    setUser(res.data.user);
-    return res.data.user;
+    return beginSession(res.data.token, res.data.user);
+  };
+
+  const exchangeSsoCode = async (code) => {
+    const res = await api.post('/auth/sso/exchange', { code });
+    return beginSession(res.data.token, res.data.user);
   };
 
   const logout = async () => {
@@ -35,7 +44,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, setUser, login, logout, exchangeSsoCode, loading }}>
       {children}
     </AuthContext.Provider>
   );

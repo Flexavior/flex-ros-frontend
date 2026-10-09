@@ -1,2 +1,7 @@
 /node_modules
 .env
+
+# Internal governance and execution tickets (not for external app repo)
+/docs/tickets/
+/governance/
+/fxv-product-canonical/
