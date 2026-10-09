@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/client.js';
 import MicrosoftEmailPanel from '../components/MicrosoftEmailPanel.jsx';
+import PicklistSelect from '../components/PicklistSelect.jsx';
+import { useMicrosoftOAuthReturn } from '../hooks/useMicrosoftOAuthReturn.js';
 
 export default function CustomerDetail() {
   const { id } = useParams();
@@ -13,6 +15,9 @@ export default function CustomerDetail() {
   const [dependency, setDependency] = useState({ title: '', type: 'external' });
   const [launchTitle, setLaunchTitle] = useState('');
   const [profileEdit, setProfileEdit] = useState(null);
+  const [picklists, setPicklists] = useState({});
+
+  useMicrosoftOAuthReturn(setMessage, setError);
 
   const load = () => {
     api.get(`/customers/${id}`)
@@ -21,6 +26,10 @@ export default function CustomerDetail() {
   };
 
   useEffect(load, [id]);
+
+  useEffect(() => {
+    api.get('/leads/schema').then((res) => setPicklists(res.data?.picklists || {})).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (data?.customer) {
@@ -32,6 +41,10 @@ export default function CustomerDetail() {
         email: c.email || '',
         phone: c.phone || '',
         address: c.address || '',
+        status: c.status || 'active',
+        customer_segment: c.customer_segment || '',
+        industry: c.industry || '',
+        geo_location: c.geo_location || '',
       });
     }
   }, [data?.customer?.id]);
@@ -117,7 +130,11 @@ export default function CustomerDetail() {
       {message && <p className="success-text">{message}</p>}
       {error && <p className="error-text">{error}</p>}
 
-      <MicrosoftEmailPanel sendUrl={`/customers/${id}/email`} disabled={!customer.email} />
+      <MicrosoftEmailPanel
+        sendUrl={`/customers/${id}/email`}
+        disabled={!customer.email}
+        returnPath={`/customers/${id}`}
+      />
 
       {profileEdit && (
         <form className="card" id="lead-section-contract" onSubmit={saveProfile}>
@@ -135,6 +152,32 @@ export default function CustomerDetail() {
               <label>Company</label>
               <input value={profileEdit.company} onChange={(e) => setProfileEdit({ ...profileEdit, company: e.target.value })} />
             </div>
+            <div className="form-row">
+              <label>Status</label>
+              <select value={profileEdit.status} onChange={(e) => setProfileEdit({ ...profileEdit, status: e.target.value })}>
+                <option value="active">Active</option>
+                <option value="onboarding">Onboarding</option>
+                <option value="churned">Inactive</option>
+              </select>
+            </div>
+            <PicklistSelect
+              label="Segment"
+              value={profileEdit.customer_segment}
+              options={picklists.customer_segment}
+              onChange={(v) => setProfileEdit({ ...profileEdit, customer_segment: v })}
+            />
+            <PicklistSelect
+              label="Industry"
+              value={profileEdit.industry}
+              options={picklists.industry}
+              onChange={(v) => setProfileEdit({ ...profileEdit, industry: v })}
+            />
+            <PicklistSelect
+              label="Geo location"
+              value={profileEdit.geo_location}
+              options={picklists.geo_location}
+              onChange={(v) => setProfileEdit({ ...profileEdit, geo_location: v })}
+            />
             <div className="form-row">
               <label>Email</label>
               <input type="email" value={profileEdit.email} onChange={(e) => setProfileEdit({ ...profileEdit, email: e.target.value })} />

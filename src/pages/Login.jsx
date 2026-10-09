@@ -1,11 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../api/client.js';
 
+function safeReturnUrl(raw) {
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return '/';
+  return raw.length > 200 ? '/' : raw;
+}
+
 export default function Login() {
-  const { login } = useAuth();
+  const { login, user, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnUrl = safeReturnUrl(searchParams.get('returnUrl'));
   const [email, setEmail] = useState('ceo@mss.test');
   const [password, setPassword] = useState('password');
   const [error, setError] = useState(null);
@@ -19,13 +26,19 @@ export default function Login() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (!loading && user) {
+      navigate(returnUrl, { replace: true });
+    }
+  }, [loading, user, navigate, returnUrl]);
+
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
       await login(email, password);
-      navigate('/');
+      navigate(returnUrl, { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed. Check your credentials.');
     } finally {
@@ -44,6 +57,14 @@ export default function Login() {
       setSsoBusy('');
     }
   };
+
+  if (loading) {
+    return (
+      <div className="login-wrap">
+        <div className="login-card"><p className="kpi-sub">Checking session…</p></div>
+      </div>
+    );
+  }
 
   return (
     <div className="login-wrap">

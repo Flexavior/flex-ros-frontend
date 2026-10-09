@@ -287,7 +287,7 @@ export default function LeadDetail() {
         </div>
       </div>
 
-      <MicrosoftEmailPanel sendUrl={`/leads/${id}/email`} disabled={!lead.email} />
+      <MicrosoftEmailPanel sendUrl={`/leads/${id}/email`} disabled={!lead.email} returnPath={`/leads/${id}`} />
 
       <div className="grid cols-2">
         <div className="card">

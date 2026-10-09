@@ -6,10 +6,16 @@ export default function Dashboard() {
   const [metrics, setMetrics] = useState(null);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
+  const loadMetrics = () => {
     api.get('/dashboard/metrics')
       .then((res) => setMetrics(res.data))
       .catch((err) => setError(err.response?.data?.message || 'Failed to load metrics.'));
+  };
+
+  useEffect(() => {
+    loadMetrics();
+    const timer = setInterval(loadMetrics, 60000);
+    return () => clearInterval(timer);
   }, []);
 
   if (error) return <div className="card"><p className="error-text">{error}</p></div>;
@@ -20,6 +26,9 @@ export default function Dashboard() {
   return (
     <div>
       <h1 className="page-title">CRM Dashboard</h1>
+      {metrics.generated_at && (
+        <p className="kpi-sub">Refreshes every 60s · Last updated {new Date(metrics.generated_at).toLocaleTimeString()}</p>
+      )}
 
       <div className="grid cols-4">
         <div className="card kpi">
@@ -43,6 +52,27 @@ export default function Dashboard() {
           <div className="kpi-sub">scheduled</div>
         </div>
       </div>
+
+      {(metrics.qualify_review?.count ?? 0) > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h3>Qualify review — idle touches (≥ {metrics.qualify_review.max_idle_touches})</h3>
+          <p className="kpi-sub">{metrics.qualify_review.count} lead(s) need demo/proposal progress</p>
+          <table>
+            <thead><tr><th>Lead</th><th>Company</th><th>Idle touches</th><th></th></tr></thead>
+            <tbody>
+              {(metrics.qualify_review.items || []).map((l) => (
+                <tr key={l.id}>
+                  <td>{l.name}</td>
+                  <td>{l.company || '—'}</td>
+                  <td><span className="badge stale">{l.idle_touch_count}</span></td>
+                  <td><Link to={`/leads/${l.id}`}>Open</Link></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <Link to="/leads">View all leads</Link>
+        </div>
+      )}
 
       <div className="grid cols-2">
         <div className="card">

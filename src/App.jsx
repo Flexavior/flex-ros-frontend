@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext.jsx';
 import Login from './pages/Login.jsx';
 import SsoCallback from './pages/SsoCallback.jsx';
@@ -14,13 +14,22 @@ import Settings from './pages/Settings.jsx';
 import AdminConsole from './pages/AdminConsole.jsx';
 import UserProvisioning from './pages/UserProvisioning.jsx';
 import Inbox from './pages/Inbox.jsx';
+import Documents from './pages/Documents.jsx';
 import Layout from './components/Layout.jsx';
 
 const INBOX_ROLES = ['customer_service', 'sales', 'staff', 'senior_staff', 'supervisor', 'senior_management', 'ceo', 'admin'];
 
 function Protected({ children, roles = null }) {
-  const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return <div className="card" style={{ margin: 24 }}>Loading session…</div>;
+  }
+  if (!user) {
+    const returnUrl = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?returnUrl=${returnUrl}`} replace />;
+  }
   if (roles && !roles.includes(user.role?.code)) return <Navigate to="/" replace />;
   return children;
 }
@@ -36,6 +45,7 @@ export default function App() {
         <Route path="/leads/:id" element={<LeadDetail />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/customers/:id" element={<CustomerDetail />} />
+        <Route path="/documents" element={<Documents />} />
         <Route path="/products" element={<Products />} />
         <Route path="/marketing" element={<Marketing />} />
         <Route

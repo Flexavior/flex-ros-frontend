@@ -4,6 +4,7 @@ import api from '../api/client.js';
 import HelpIcon from '../components/HelpIcon.jsx';
 import LeadJourneyGuide from '../components/LeadJourneyGuide.jsx';
 import PicklistSelect from '../components/PicklistSelect.jsx';
+import ListPagination from '../components/ListPagination.jsx';
 import { help } from '../content/helpText.js';
 
 function formatLeadCustomValue(lead, field) {
@@ -34,14 +35,20 @@ export default function Leads() {
   });
   const [error, setError] = useState(null);
   const [metrics, setMetrics] = useState(null);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
+  const [meta, setMeta] = useState(null);
 
   const load = () => {
-    const params = {};
+    const params = { page, per_page: perPage };
     if (statusFilter) params.current_stage = statusFilter;
     if (sourceFilter) params.lead_source = sourceFilter;
 
     api.get('/leads', { params })
-      .then((res) => setLeads(res.data.data || res.data))
+      .then((res) => {
+        setLeads(res.data.data || []);
+        setMeta(res.data.meta || null);
+      })
       .catch((err) => setError(err.response?.data?.message || 'Failed to load leads.'));
   };
 
@@ -59,7 +66,9 @@ export default function Leads() {
       .catch(() => {});
   }, []);
 
-  useEffect(load, [statusFilter, sourceFilter]);
+  useEffect(load, [statusFilter, sourceFilter, page, perPage]);
+
+  useEffect(() => { setPage(1); }, [statusFilter, sourceFilter]);
 
   useEffect(() => {
     api.get('/dashboard/metrics')
@@ -305,6 +314,11 @@ export default function Leads() {
             </tbody>
           </table>
         </div>
+        <ListPagination
+          meta={meta}
+          onPageChange={setPage}
+          onPerPageChange={(n) => { setPerPage(n); setPage(1); }}
+        />
       </div>
     </div>
   );

@@ -26,6 +26,7 @@ export default function Layout() {
           <NavLink to="/leads">Leads</NavLink>
           {showInbox && <NavLink to="/inbox">Inbox</NavLink>}
           <NavLink to="/customers">Customers</NavLink>
+          <NavLink to="/documents">Documents</NavLink>
           <NavLink to="/products">Products &amp; Services</NavLink>
           <NavLink to="/marketing">Marketing</NavLink>
           {canProvision && <NavLink to="/people">Users</NavLink>}

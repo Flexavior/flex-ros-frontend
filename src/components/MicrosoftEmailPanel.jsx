@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/client.js';
 
-export default function MicrosoftEmailPanel({ sendUrl, disabled }) {
+export default function MicrosoftEmailPanel({ sendUrl, disabled, returnPath }) {
   const [msStatus, setMsStatus] = useState(null);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -20,7 +20,8 @@ export default function MicrosoftEmailPanel({ sendUrl, disabled }) {
   const connect = async () => {
     setError(null);
     try {
-      const res = await api.post('/integrations/microsoft/connect');
+      const path = returnPath || (typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/settings');
+      const res = await api.post('/integrations/microsoft/connect', { return_path: path });
       window.location.href = res.data.url;
     } catch (err) {
       setError(err.response?.data?.message || 'Could not start Microsoft sign-in.');
