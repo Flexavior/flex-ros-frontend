@@ -12,6 +12,7 @@ export default function CustomerDetail() {
   const [agreement, setAgreement] = useState({ type: 'nda', title: '', signatory_name: '' });
   const [dependency, setDependency] = useState({ title: '', type: 'external' });
   const [launchTitle, setLaunchTitle] = useState('');
+  const [profileEdit, setProfileEdit] = useState(null);
 
   const load = () => {
     api.get(`/customers/${id}`)
@@ -20,6 +21,19 @@ export default function CustomerDetail() {
   };
 
   useEffect(load, [id]);
+
+  useEffect(() => {
+    if (data?.customer) {
+      const c = data.customer;
+      setProfileEdit({
+        client_id: c.client_id || '',
+        name: c.name || '',
+        company: c.company || '',
+        email: c.email || '',
+        phone: c.phone || '',
+      });
+    }
+  }, [data?.customer?.id]);
 
   if (error) return <div className="card"><p className="error-text">{error}</p></div>;
   if (!data) return <div className="card">Loading…</div>;
@@ -81,6 +95,18 @@ export default function CustomerDetail() {
     load();
   };
 
+  const saveProfile = async (e) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      await api.put(`/customers/${id}`, profileEdit);
+      setMessage('Customer profile updated.');
+      load();
+    } catch (err) {
+      setError(err.response?.data?.message || err.response?.data?.errors?.client_id?.[0] || 'Update failed.');
+    }
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -91,6 +117,35 @@ export default function CustomerDetail() {
       {error && <p className="error-text">{error}</p>}
 
       <MicrosoftEmailPanel sendUrl={`/customers/${id}/email`} disabled={!customer.email} />
+
+      {profileEdit && (
+        <form className="card" id="lead-section-contract" onSubmit={saveProfile}>
+          <h3>Customer profile &amp; Client ID</h3>
+          <div className="grid cols-3">
+            <div className="form-row">
+              <label>Client ID</label>
+              <input value={profileEdit.client_id} onChange={(e) => setProfileEdit({ ...profileEdit, client_id: e.target.value })} required />
+            </div>
+            <div className="form-row">
+              <label>Official contact name</label>
+              <input value={profileEdit.name} onChange={(e) => setProfileEdit({ ...profileEdit, name: e.target.value })} required />
+            </div>
+            <div className="form-row">
+              <label>Company</label>
+              <input value={profileEdit.company} onChange={(e) => setProfileEdit({ ...profileEdit, company: e.target.value })} />
+            </div>
+            <div className="form-row">
+              <label>Email</label>
+              <input type="email" value={profileEdit.email} onChange={(e) => setProfileEdit({ ...profileEdit, email: e.target.value })} />
+            </div>
+            <div className="form-row">
+              <label>Phone</label>
+              <input value={profileEdit.phone} onChange={(e) => setProfileEdit({ ...profileEdit, phone: e.target.value })} />
+            </div>
+          </div>
+          <button type="submit" className="small">Save profile</button>
+        </form>
+      )}
 
       <div className="grid cols-2">
         <div className="card">

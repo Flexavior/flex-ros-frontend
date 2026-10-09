@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../api/client.js';
 import HelpIcon from '../components/HelpIcon.jsx';
 import LeadJourneyGuide from '../components/LeadJourneyGuide.jsx';
+import PicklistSelect from '../components/PicklistSelect.jsx';
 import { help } from '../content/helpText.js';
 
 function formatLeadCustomValue(lead, field) {
@@ -25,6 +26,9 @@ export default function Leads() {
     phone: '',
     lead_source: '',
     current_stage: '',
+    customer_segment: '',
+    industry: '',
+    geo_location: '',
     notes: '',
     custom_fields: {},
   });
@@ -75,6 +79,9 @@ export default function Leads() {
         phone: '',
         lead_source: schema.picklists?.lead_source?.[0] || '',
         current_stage: schema.picklists?.current_stage?.[0] || '',
+        customer_segment: '',
+        industry: '',
+        geo_location: '',
         notes: '',
         custom_fields: {},
       });
@@ -136,14 +143,38 @@ export default function Leads() {
               <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
             <div className="form-row"><label>Phone</label>
               <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-            <div className="form-row"><label>Lead Source</label>
-              <select value={form.lead_source} onChange={(e) => setForm({ ...form, lead_source: e.target.value })}>
-                {(schema.picklists?.lead_source || []).map((s) => <option key={s} value={s}>{s}</option>)}
-              </select></div>
-            <div className="form-row"><label>Current Stage</label>
-              <select value={form.current_stage} onChange={(e) => setForm({ ...form, current_stage: e.target.value })}>
-                {(schema.picklists?.current_stage || []).map((s) => <option key={s} value={s}>{s}</option>)}
-              </select></div>
+            <PicklistSelect
+              label="Lead Source"
+              value={form.lead_source}
+              options={schema.picklists?.lead_source}
+              allowEmpty={false}
+              onChange={(v) => setForm({ ...form, lead_source: v })}
+            />
+            <PicklistSelect
+              label="Current Stage"
+              value={form.current_stage}
+              options={schema.picklists?.current_stage}
+              allowEmpty={false}
+              onChange={(v) => setForm({ ...form, current_stage: v })}
+            />
+            <PicklistSelect
+              label="Customer segment"
+              value={form.customer_segment}
+              options={schema.picklists?.customer_segment}
+              onChange={(v) => setForm({ ...form, customer_segment: v })}
+            />
+            <PicklistSelect
+              label="Industry"
+              value={form.industry}
+              options={schema.picklists?.industry}
+              onChange={(v) => setForm({ ...form, industry: v })}
+            />
+            <PicklistSelect
+              label="Geo location"
+              value={form.geo_location}
+              options={schema.picklists?.geo_location}
+              onChange={(v) => setForm({ ...form, geo_location: v })}
+            />
             <div className="form-row"><label>Notes</label>
               <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
           </div>
@@ -228,6 +259,9 @@ export default function Leads() {
                 <th scope="col">Name</th>
                 <th scope="col">Company</th>
                 <th scope="col">Lead Source</th>
+                <th scope="col">Segment</th>
+                <th scope="col">Industry</th>
+                <th scope="col">Geo</th>
                 <th scope="col">Current Stage</th>
                 {(schema.custom_fields?.lead || []).map((field) => (
                   <th scope="col" key={field.field_key}>{field.label}</th>
@@ -243,6 +277,9 @@ export default function Leads() {
                   <td><Link to={`/leads/${l.id}`}>{l.name}</Link></td>
                   <td>{l.company || '—'}</td>
                   <td>{l.lead_source || l.source || '—'}</td>
+                  <td>{l.customer_segment || '—'}</td>
+                  <td>{l.industry || '—'}</td>
+                  <td>{l.geo_location || '—'}</td>
                   <td><span className="badge pending">{l.current_stage || l.status || '—'}</span></td>
                   {(schema.custom_fields?.lead || []).map((field) => (
                     <td key={field.field_key}>{formatLeadCustomValue(l, field)}</td>
@@ -254,7 +291,7 @@ export default function Leads() {
               ))}
               {!leads.length && (
                 <tr>
-                  <td colSpan={8 + (schema.custom_fields?.lead || []).length} className="kpi-sub">No leads yet.</td>
+                  <td colSpan={11 + (schema.custom_fields?.lead || []).length} className="kpi-sub">No leads yet.</td>
                 </tr>
               )}
             </tbody>

@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api/client.js';
 import MicrosoftEmailPanel from '../components/MicrosoftEmailPanel.jsx';
 import HelpIcon from '../components/HelpIcon.jsx';
+import LeadPipelineRibbon from '../components/LeadPipelineRibbon.jsx';
+import PicklistSelect from '../components/PicklistSelect.jsx';
 import { help } from '../content/helpText.js';
 
 export default function LeadDetail() {
@@ -25,11 +27,26 @@ export default function LeadDetail() {
   });
   const [appointment, setAppointment] = useState({ title: '', scheduled_at: '', location: '' });
   const [convertProducts, setConvertProducts] = useState([]);
+  const [convertClientId, setConvertClientId] = useState('');
   const [products, setProducts] = useState([]);
+  const [capture, setCapture] = useState({
+    customer_segment: '',
+    industry: '',
+    geo_location: '',
+    product_interest: '',
+  });
 
   const load = () => {
     api.get(`/leads/${id}`)
-      .then((res) => setLead(res.data))
+      .then((res) => {
+        setLead(res.data);
+        setCapture({
+          customer_segment: res.data.customer_segment || '',
+          industry: res.data.industry || '',
+          geo_location: res.data.geo_location || '',
+          product_interest: res.data.product_interest || '',
+        });
+      })
       .catch((err) => setError(err.response?.data?.message || 'Failed to load lead.'));
     api.get('/products-services').then((res) => setProducts(res.data)).catch(() => {});
   };
@@ -60,6 +77,17 @@ export default function LeadDetail() {
       load();
     } catch (err) {
       setError(err.response?.data?.message || 'Update failed.');
+    }
+  };
+
+  const saveCapture = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put(`/leads/${id}`, capture);
+      setMessage('Capture fields updated.');
+      load();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not save capture fields.');
     }
   };
 
@@ -99,7 +127,9 @@ export default function LeadDetail() {
 
   const convert = async () => {
     try {
-      const res = await api.post(`/leads/${id}/convert`, { product_service_ids: convertProducts.map(Number) });
+      const payload = { product_service_ids: convertProducts.map(Number) };
+      if (convertClientId.trim()) payload.client_id = convertClientId.trim();
+      const res = await api.post(`/leads/${id}/convert`, payload);
       setMessage(`Converted! Client ID: ${res.data.client_id}`);
       load();
     } catch (err) {
@@ -116,8 +146,10 @@ export default function LeadDetail() {
       {message && <p className="success-text">{message}</p>}
       {error && <p className="error-text">{error}</p>}
 
+      <LeadPipelineRibbon currentStage={lead.current_stage} converted={lead.status === 'converted'} />
+
       <div className="grid cols-3">
-        <div className="card">
+        <div className="card" id="lead-section-capture">
           <h3>
             Pipeline Stage
             <HelpIcon text={help.leadPipelineStage} label="Help: pipeline stage" />
@@ -132,16 +164,51 @@ export default function LeadDetail() {
           </div>
           <p className="kpi-sub">Last status change: {lead.status_updated_at ? new Date(lead.status_updated_at).toLocaleString() : '—'}</p>
           <p className="kpi-sub">Source: {lead.lead_source || lead.source || '—'} · Phone: {lead.phone || '—'} · Email: {lead.email || '—'}</p>
-          <p className="kpi-sub">Interest: {lead.product_interest || '—'} · Segment: {lead.customer_segment || '—'}</p>
           {lead.customer && <p>Client: <Link to={`/customers/${lead.customer.id}`}>{lead.customer.client_id}</Link></p>}
+          <form onSubmit={saveCapture} style={{ marginTop: 12 }}>
+            <PicklistSelect
+              label="Customer segment"
+              value={capture.customer_segment}
+              options={schema.picklists?.customer_segment}
+              onChange={(v) => setCapture({ ...capture, customer_segment: v })}
+            />
+            <PicklistSelect
+              label="Industry"
+              value={capture.industry}
+              options={schema.picklists?.industry}
+              onChange={(v) => setCapture({ ...capture, industry: v })}
+            />
+            <PicklistSelect
+              label="Geo location"
+              value={capture.geo_location}
+              options={schema.picklists?.geo_location}
+              onChange={(v) => setCapture({ ...capture, geo_location: v })}
+            />
+            <PicklistSelect
+              label="Product interest"
+              value={capture.product_interest}
+              options={schema.picklists?.product_interest}
+              onChange={(v) => setCapture({ ...capture, product_interest: v })}
+            />
+            <button type="submit" className="small">Save capture</button>
+          </form>
         </div>
 
-        <div className="card">
+        <div className="card" id="lead-section-convert">
           <h3>Convert to Customer</h3>
           {lead.status === 'converted' ? (
             <p className="success-text">Already converted.</p>
           ) : (
             <>
+              <div className="form-row">
+                <label>Client ID (optional)</label>
+                <input
+                  placeholder="261009_C101 (auto if blank)"
+                  value={convertClientId}
+                  onChange={(e) => setConvertClientId(e.target.value)}
+                />
+                <p className="kpi-sub">Format YYMMDD_C{n} (e.g. 261009_C101). Leave blank to auto-generate.</p>
+              </div>
               <div className="form-row">
                 <label>Products / Services</label>
                 <select multiple value={convertProducts} onChange={(e) => setConvertProducts([...e.target.selectedOptions].map((o) => o.value))} style={{ height: 110 }}>
@@ -153,7 +220,7 @@ export default function LeadDetail() {
           )}
         </div>
 
-        <div className="card">
+        <div className="card" id="lead-section-appoint">
           <h3>Schedule Appointment</h3>
           <form onSubmit={scheduleAppointment}>
             <div className="form-row"><label>Title *</label>
@@ -170,7 +237,7 @@ export default function LeadDetail() {
       <MicrosoftEmailPanel sendUrl={`/leads/${id}/email`} disabled={!lead.email} />
 
       <div className="grid cols-2">
-        <div className="card">
+        <div className="card" id="lead-section-qualify">
           <h3>
             Log Engagement (follow-up)
             <HelpIcon text={help.leadFollowUp} label="Help: follow-up" />

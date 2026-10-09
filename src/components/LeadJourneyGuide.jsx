@@ -3,10 +3,11 @@ import HelpIcon from './HelpIcon.jsx';
 import { help } from '../content/helpText.js';
 
 const STEPS = [
-  { title: '1. Capture', body: 'Create lead with source, stage, contact details, and custom fields.' },
-  { title: '2. Qualify & follow up', body: 'Log engagements with outcome and next follow-up; move stage as the deal progresses.' },
-  { title: '3. Meeting & proposal', body: 'Schedule appointments; email via Microsoft 365 when connected.' },
-  { title: '4. Convert', body: 'Convert to customer to generate Client ID, products, and onboarding checklists.' },
+  { title: '1. Capture', body: 'Business + initial contact, geo, sector/industry, source.' },
+  { title: '2. Qualify', body: 'Engagement loops — contacts, channels, response notes; watch for idle follow-ups.' },
+  { title: '3. Appoint', body: 'Meetings and high-potential actions (proposal, pricing, volume).' },
+  { title: '4. Convert', body: 'Deal → Customer with Client ID (YYMMDD_Cn); map products.' },
+  { title: '5. Contract', body: 'NDA/MoU/contract and provisioning (logo, data) on the customer record.' },
 ];
 
 export default function LeadJourneyGuide() {

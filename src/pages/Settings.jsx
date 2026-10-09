@@ -7,6 +7,7 @@ export default function Settings() {
   const [checklists, setChecklists] = useState({});
   const [stages, setStages] = useState([]);
   const [general, setGeneral] = useState({});
+  const [picklists, setPicklists] = useState({});
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
 
@@ -14,6 +15,7 @@ export default function Settings() {
     api.get('/stages').then((res) => setStages(res.data)).catch(() => {});
     api.get('/settings/checklists').then((res) => setChecklists(res.data)).catch(() => {});
     api.get('/settings/general').then((res) => setGeneral(res.data)).catch(() => {});
+    api.get('/settings/lead-picklists').then((res) => setPicklists(res.data || {})).catch(() => {});
   };
 
   useEffect(() => { load(); }, []);
@@ -63,13 +65,35 @@ export default function Settings() {
       }
       await api.put('/settings/checklists', payload);
       if (general['crm.stale_task_days']) {
-        await api.put('/settings/general', { 'crm.stale_task_days': Number(general['crm.stale_task_days']) });
+        await api.put('/settings/general', {
+          'crm.stale_task_days': Number(general['crm.stale_task_days']),
+          'crm.client_id_prefix': general['crm.client_id_prefix'],
+        });
       }
-      setMessage('Settings saved. New conversions will use the updated checklists.');
+      const pickPayload = {};
+      for (const [key, text] of Object.entries(picklists)) {
+        if (typeof text === 'string') {
+          pickPayload[key] = text.split('\n').map((l) => l.trim()).filter(Boolean);
+        } else if (Array.isArray(text)) {
+          pickPayload[key] = text;
+        }
+      }
+      await api.put('/settings/lead-picklists', pickPayload);
+      setMessage('Settings saved (checklists, general, lead picklists).');
       load();
     } catch (err) {
       setError(err.response?.data?.message || 'Save failed.');
     }
+  };
+
+  const picklistText = (key) => {
+    const v = picklists[key];
+    if (Array.isArray(v)) return v.join('\n');
+    return typeof v === 'string' ? v : '';
+  };
+
+  const setPicklistText = (key, text) => {
+    setPicklists({ ...picklists, [key]: text });
   };
 
   return (
@@ -90,12 +114,32 @@ export default function Settings() {
             />
           </div>
           <div className="form-row">
-            <label>Client ID prefix</label>
+            <label>Client ID prefix (legacy setting; new IDs use YYMMDD_Cn)</label>
             <input
               value={general['crm.client_id_prefix'] ?? 'CUS'}
               onChange={(e) => setGeneral({ ...general, 'crm.client_id_prefix': e.target.value })}
             />
           </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>Lead picklists (settings-backed)</h3>
+        <p className="kpi-sub">
+          One option per line. Stored in DB setting <code>crm.lead_picklists</code>.
+          Segment = org size; Industry = sector name; Geo = region.
+        </p>
+        <div className="grid cols-3">
+          {['customer_segment', 'industry', 'geo_location', 'lead_source', 'product_interest', 'current_stage'].map((key) => (
+            <div className="form-row" key={key}>
+              <label>{key.replace(/_/g, ' ')}</label>
+              <textarea
+                rows={8}
+                value={picklistText(key)}
+                onChange={(e) => setPicklistText(key, e.target.value)}
+              />
+            </div>
+          ))}
         </div>
       </div>
 
