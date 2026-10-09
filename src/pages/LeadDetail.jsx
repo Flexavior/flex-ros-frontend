@@ -29,6 +29,7 @@ export default function LeadDetail() {
   const [convertProducts, setConvertProducts] = useState([]);
   const [convertClientId, setConvertClientId] = useState('');
   const [products, setProducts] = useState([]);
+  const [contacts, setContacts] = useState([]);
   const [capture, setCapture] = useState({
     customer_segment: '',
     industry: '',
@@ -46,6 +47,7 @@ export default function LeadDetail() {
           geo_location: res.data.geo_location || '',
           product_interest: res.data.product_interest || '',
         });
+        setContacts((res.data.contacts || []).map((c) => ({ ...c, is_primary: !!c.is_primary })));
       })
       .catch((err) => setError(err.response?.data?.message || 'Failed to load lead.'));
     api.get('/products-services').then((res) => setProducts(res.data)).catch(() => {});
@@ -137,6 +139,55 @@ export default function LeadDetail() {
     }
   };
 
+  const updateContact = (index, key, value) => {
+    setContacts((prev) => prev.map((c, i) => {
+      if (i !== index) return c;
+      if (key === 'is_primary' && value === true) {
+        return { ...c, is_primary: true };
+      }
+      return { ...c, [key]: value };
+    }).map((c, i) => (key === 'is_primary' && value === true && i !== index ? { ...c, is_primary: false } : c)));
+  };
+
+  const addContact = () => {
+    setContacts((prev) => [...prev, {
+      name: '',
+      role: '',
+      email: '',
+      phone: '',
+      viber_id: '',
+      is_primary: prev.length === 0,
+    }]);
+  };
+
+  const removeContact = (index) => {
+    setContacts((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const saveContacts = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put(`/leads/${id}`, {
+        contacts: contacts.map((c) => ({
+          id: c.id,
+          name: c.name || null,
+          role: c.role || null,
+          email: c.email || null,
+          phone: c.phone || null,
+          viber_id: c.viber_id || null,
+          is_primary: !!c.is_primary,
+        })),
+      });
+      setMessage('Lead contacts updated.');
+      load();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not save contacts.');
+    }
+  };
+
+  const canConvert = !!lead.convert_eligible;
+  const convertBlockedHint = `Conversion unlocks at Qualified stage or later. Current stage: ${lead.current_stage || 'Unknown'}.`;
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -198,6 +249,8 @@ export default function LeadDetail() {
           <h3>Convert to Customer</h3>
           {lead.status === 'converted' ? (
             <p className="success-text">Already converted.</p>
+          ) : !canConvert ? (
+            <p className="kpi-sub">{convertBlockedHint}</p>
           ) : (
             <>
               <div className="form-row">
@@ -237,11 +290,57 @@ export default function LeadDetail() {
       <MicrosoftEmailPanel sendUrl={`/leads/${id}/email`} disabled={!lead.email} />
 
       <div className="grid cols-2">
+        <div className="card">
+          <h3>Contacts</h3>
+          <p className="kpi-sub">Add all known contacts and mark one primary contact.</p>
+          <form onSubmit={saveContacts}>
+            {(contacts || []).map((contact, index) => (
+              <div key={contact.id || `new-${index}`} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 10, marginBottom: 8 }}>
+                <div className="grid cols-3">
+                  <div className="form-row"><label>Name</label>
+                    <input value={contact.name || ''} onChange={(e) => updateContact(index, 'name', e.target.value)} />
+                  </div>
+                  <div className="form-row"><label>Role</label>
+                    <input value={contact.role || ''} onChange={(e) => updateContact(index, 'role', e.target.value)} />
+                  </div>
+                  <div className="form-row"><label>Email</label>
+                    <input type="email" value={contact.email || ''} onChange={(e) => updateContact(index, 'email', e.target.value)} />
+                  </div>
+                  <div className="form-row"><label>Phone</label>
+                    <input value={contact.phone || ''} onChange={(e) => updateContact(index, 'phone', e.target.value)} />
+                  </div>
+                  <div className="form-row"><label>Viber ID</label>
+                    <input value={contact.viber_id || ''} onChange={(e) => updateContact(index, 'viber_id', e.target.value)} />
+                  </div>
+                  <div className="form-row">
+                    <label>Primary</label>
+                    <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <input type="checkbox" checked={!!contact.is_primary} onChange={(e) => updateContact(index, 'is_primary', e.target.checked)} />
+                      Yes
+                    </label>
+                  </div>
+                </div>
+                <button type="button" className="small danger" onClick={() => removeContact(index)}>Remove</button>
+              </div>
+            ))}
+            {!contacts.length && <p className="kpi-sub">No contacts yet.</p>}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" className="small" onClick={addContact}>+ Add contact</button>
+              <button type="submit" className="small">Save contacts</button>
+            </div>
+          </form>
+        </div>
+
         <div className="card" id="lead-section-qualify">
           <h3>
             Log Engagement (follow-up)
             <HelpIcon text={help.leadFollowUp} label="Help: follow-up" />
           </h3>
+          {lead.needs_qualify_review && (
+            <p className="error-text">
+              Qualify review needed: {lead.idle_touch_count} touches without progress outcome.
+            </p>
+          )}
           <form onSubmit={logEngagement}>
             <div className="form-row"><label>Channel</label>
               <select value={engagement.channel} onChange={(e) => setEngagement({ ...engagement, channel: e.target.value })}>

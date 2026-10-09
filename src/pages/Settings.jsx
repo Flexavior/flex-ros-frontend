@@ -65,9 +65,19 @@ export default function Settings() {
       }
       await api.put('/settings/checklists', payload);
       if (general['crm.stale_task_days']) {
+        const qualifyProgressOutcomes = String(general['crm.qualify']?.progress_outcomes_text || '')
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean);
         await api.put('/settings/general', {
           'crm.stale_task_days': Number(general['crm.stale_task_days']),
           'crm.client_id_prefix': general['crm.client_id_prefix'],
+          'crm.qualify': {
+            max_idle_touches: Number(general['crm.qualify']?.max_idle_touches || 4),
+            progress_outcomes: qualifyProgressOutcomes.length
+              ? qualifyProgressOutcomes
+              : (general['crm.qualify']?.progress_outcomes || ['Demo booked', 'Proposal sent', 'Won']),
+          },
         });
       }
       const pickPayload = {};
@@ -118,6 +128,35 @@ export default function Settings() {
             <input
               value={general['crm.client_id_prefix'] ?? 'CUS'}
               onChange={(e) => setGeneral({ ...general, 'crm.client_id_prefix': e.target.value })}
+            />
+          </div>
+          <div className="form-row">
+            <label>Qualify idle touch threshold</label>
+            <input
+              type="number" min="1" max="50"
+              value={general['crm.qualify']?.max_idle_touches ?? 4}
+              onChange={(e) => setGeneral({
+                ...general,
+                'crm.qualify': {
+                  ...(general['crm.qualify'] || {}),
+                  max_idle_touches: e.target.value,
+                },
+              })}
+            />
+          </div>
+          <div className="form-row" style={{ gridColumn: '1 / -1' }}>
+            <label>Qualify progress outcomes (one per line; must match activity outcomes)</label>
+            <textarea
+              rows={4}
+              value={general['crm.qualify']?.progress_outcomes_text
+                ?? (general['crm.qualify']?.progress_outcomes || []).join('\n')}
+              onChange={(e) => setGeneral({
+                ...general,
+                'crm.qualify': {
+                  ...(general['crm.qualify'] || {}),
+                  progress_outcomes_text: e.target.value,
+                },
+              })}
             />
           </div>
         </div>

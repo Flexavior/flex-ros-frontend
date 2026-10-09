@@ -263,6 +263,7 @@ export default function Leads() {
                 <th scope="col">Industry</th>
                 <th scope="col">Geo</th>
                 <th scope="col">Current Stage</th>
+                <th scope="col">Qualify Alert</th>
                 {(schema.custom_fields?.lead || []).map((field) => (
                   <th scope="col" key={field.field_key}>{field.label}</th>
                 ))}
@@ -281,6 +282,13 @@ export default function Leads() {
                   <td>{l.industry || '—'}</td>
                   <td>{l.geo_location || '—'}</td>
                   <td><span className="badge pending">{l.current_stage || l.status || '—'}</span></td>
+                  <td>
+                    {l.needs_qualify_review ? (
+                      <span className="badge stale">{l.idle_touch_count} idle touches</span>
+                    ) : (
+                      <span className="kpi-sub">—</span>
+                    )}
+                  </td>
                   {(schema.custom_fields?.lead || []).map((field) => (
                     <td key={field.field_key}>{formatLeadCustomValue(l, field)}</td>
                   ))}
@@ -291,7 +299,7 @@ export default function Leads() {
               ))}
               {!leads.length && (
                 <tr>
-                  <td colSpan={11 + (schema.custom_fields?.lead || []).length} className="kpi-sub">No leads yet.</td>
+                  <td colSpan={12 + (schema.custom_fields?.lead || []).length} className="kpi-sub">No leads yet.</td>
                 </tr>
               )}
             </tbody>

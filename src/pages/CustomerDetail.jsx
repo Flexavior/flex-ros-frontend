@@ -31,6 +31,7 @@ export default function CustomerDetail() {
         company: c.company || '',
         email: c.email || '',
         phone: c.phone || '',
+        address: c.address || '',
       });
     }
   }, [data?.customer?.id]);
@@ -141,6 +142,10 @@ export default function CustomerDetail() {
             <div className="form-row">
               <label>Phone</label>
               <input value={profileEdit.phone} onChange={(e) => setProfileEdit({ ...profileEdit, phone: e.target.value })} />
+            </div>
+            <div className="form-row" style={{ gridColumn: '1 / -1' }}>
+              <label>Address</label>
+              <textarea rows={3} value={profileEdit.address} onChange={(e) => setProfileEdit({ ...profileEdit, address: e.target.value })} />
             </div>
           </div>
           <button type="submit" className="small">Save profile</button>
