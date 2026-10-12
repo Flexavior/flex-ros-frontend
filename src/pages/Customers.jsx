@@ -2,19 +2,34 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client.js';
 import ListPagination from '../components/ListPagination.jsx';
+import ListSearchInput from '../components/ListSearchInput.jsx';
 import { customerStatusLabel, normalizeCustomerStatus } from '../utils/customerStatus.js';
+import { listMetaFromResponse } from '../utils/listPagination.js';
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
   const [meta, setMeta] = useState(null);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
+  const [searchDraft, setSearchDraft] = useState('');
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchDraft.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [searchDraft]);
+
+  useEffect(() => { setPage(1); }, [search]);
 
   const load = () => {
-    api.get('/customers', { params: { page, per_page: perPage } })
+    const params = { page, per_page: perPage };
+    const q = search.trim();
+    if (q) params.q = q;
+
+    api.get('/customers', { params })
       .then((res) => {
         setCustomers(res.data.data || []);
-        setMeta(res.data.meta || null);
+        setMeta(listMetaFromResponse(res.data));
       })
       .catch(() => {
         setCustomers([]);
@@ -22,7 +37,7 @@ export default function Customers() {
       });
   };
 
-  useEffect(load, [page, perPage]);
+  useEffect(load, [page, perPage, search]);
 
   const statusLabel = (s) => customerStatusLabel(normalizeCustomerStatus(s));
 
@@ -30,6 +45,12 @@ export default function Customers() {
     <div>
       <h1 className="page-title">Customers / Clients</h1>
       <div className="card">
+        <ListSearchInput
+          id="customers-list-search"
+          value={searchDraft}
+          onChange={setSearchDraft}
+          placeholder="Client ID, name, company, email, or phone"
+        />
         <div className="table-scroll" role="region" aria-label="Customers list">
           <table>
             <thead>

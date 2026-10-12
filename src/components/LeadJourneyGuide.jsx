@@ -11,7 +11,7 @@ const STEPS = [
 ];
 
 export default function LeadJourneyGuide() {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   return (
     <section className="card journey-guide" aria-labelledby="lead-journey-heading">

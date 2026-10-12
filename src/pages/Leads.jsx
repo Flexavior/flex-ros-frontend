@@ -5,6 +5,8 @@ import HelpIcon from '../components/HelpIcon.jsx';
 import LeadJourneyGuide from '../components/LeadJourneyGuide.jsx';
 import PicklistSelect from '../components/PicklistSelect.jsx';
 import ListPagination from '../components/ListPagination.jsx';
+import ListSearchInput from '../components/ListSearchInput.jsx';
+import { listMetaFromResponse } from '../utils/listPagination.js';
 import { help } from '../content/helpText.js';
 
 function formatLeadCustomValue(lead, field) {
@@ -40,16 +42,27 @@ export default function Leads() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
   const [meta, setMeta] = useState(null);
+  const [searchDraft, setSearchDraft] = useState('');
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchDraft.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [searchDraft]);
+
+  useEffect(() => { setPage(1); }, [search]);
 
   const load = () => {
     const params = { page, per_page: perPage };
     if (statusFilter) params.current_stage = statusFilter;
     if (sourceFilter) params.lead_source = sourceFilter;
+    const q = search.trim();
+    if (q) params.q = q;
 
     api.get('/leads', { params })
       .then((res) => {
         setLeads(res.data.data || []);
-        setMeta(res.data.meta || null);
+        setMeta(listMetaFromResponse(res.data));
       })
       .catch((err) => setError(err.response?.data?.message || 'Failed to load leads.'));
   };
@@ -68,7 +81,7 @@ export default function Leads() {
       .catch(() => {});
   }, []);
 
-  useEffect(load, [statusFilter, sourceFilter, page, perPage]);
+  useEffect(load, [statusFilter, sourceFilter, page, perPage, search]);
 
   useEffect(() => { setPage(1); }, [statusFilter, sourceFilter]);
 
@@ -258,6 +271,12 @@ export default function Leads() {
       )}
 
       <div className="card">
+        <ListSearchInput
+          id="leads-list-search"
+          value={searchDraft}
+          onChange={setSearchDraft}
+          placeholder="Name, company, or client ID"
+        />
         <div className="grid cols-3">
           <div className="form-row">
             <label>Filter by stage</label>
