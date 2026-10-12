@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api/client.js';
 import MicrosoftEmailPanel from '../components/MicrosoftEmailPanel.jsx';
@@ -6,6 +6,7 @@ import HelpIcon from '../components/HelpIcon.jsx';
 import LeadPipelineRibbon from '../components/LeadPipelineRibbon.jsx';
 import PicklistSelect from '../components/PicklistSelect.jsx';
 import { help } from '../content/helpText.js';
+import { normalizeLeadPayload } from '../utils/normalizeLead.js';
 
 export default function LeadDetail() {
   const { id } = useParams();
@@ -44,26 +45,48 @@ export default function LeadDetail() {
     contact_role: '',
   });
 
+  useLayoutEffect(() => {
+    setError(null);
+    setMessage(null);
+    setLead(null);
+  }, [id]);
+
   const load = () => {
     api.get(`/leads/${id}`)
       .then((res) => {
-        setLead(res.data);
+        const row = normalizeLeadPayload(res.data);
+        if (!row) {
+          setLead(null);
+          setError('Lead data was invalid or empty.');
+          return;
+        }
+        setLead(row);
+        setError(null);
         setCapture({
-          customer_segment: res.data.customer_segment || '',
-          industry: res.data.industry || '',
-          geo_location: res.data.geo_location || '',
-          product_interest: res.data.product_interest || '',
+          customer_segment: row.customer_segment || '',
+          industry: row.industry || '',
+          geo_location: row.geo_location || '',
+          product_interest: row.product_interest || '',
         });
         setQualify({
-          interest_level: res.data.interest_level || '',
-          buying_timeline: res.data.buying_timeline || '',
-          primary_contact_method: res.data.primary_contact_method || '',
-          contact_role: res.data.contact_role || '',
+          interest_level: row.interest_level || '',
+          buying_timeline: row.buying_timeline || '',
+          primary_contact_method: row.primary_contact_method || '',
+          contact_role: row.contact_role || '',
         });
-        setContacts((res.data.contacts || []).map((c) => ({ ...c, is_primary: !!c.is_primary })));
+        setContacts(row.contacts.map((c) => ({ ...c, is_primary: !!c.is_primary })));
       })
-      .catch((err) => setError(err.response?.data?.message || 'Failed to load lead.'));
-    api.get('/products-services').then((res) => setProducts(res.data)).catch(() => {});
+      .catch((err) => {
+        const msg = err.response?.data?.message
+          || (err.response?.status === 403 ? 'You do not have access to this lead (check owner_id after SQL import).'
+          : err.response?.status === 404 ? 'Lead not found.'
+          : 'Failed to load lead.');
+        setLead(null);
+        setError(msg);
+      });
+    api.get('/products-services')
+      .then((res) => setProducts(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setProducts([]));
   };
 
   useEffect(() => {
@@ -82,8 +105,16 @@ export default function LeadDetail() {
 
   useEffect(load, [id]);
 
-  if (error) return <div className="card"><p className="error-text">{error}</p> <Link to="/leads">Back to leads</Link></div>;
-  if (!lead) return <div className="card">Loading…</div>;
+  if (!lead) {
+    return (
+      <div className="card">
+        {error ? <p className="error-text">{error}</p> : <p className="kpi-sub">Loading…</p>}
+        <p style={{ marginTop: 12 }}>
+          <Link to="/leads">← Back to leads</Link>
+        </p>
+      </div>
+    );
+  }
 
   const changeStatus = async (current_stage) => {
     try {
@@ -485,7 +516,7 @@ export default function LeadDetail() {
                     value={engagement.custom_fields[field.field_key] || ''}
                     onChange={(e) => setEngagement({
                       ...engagement,
-                      custom_fields: { ...engagement.custom_fields, [field.field_key]: e.target.value },
+                      custom_fields: { ...(engagement.custom_fields || {}), [field.field_key]: e.target.value },
                     })}
                   >
                     <option value="">Select...</option>
@@ -497,7 +528,7 @@ export default function LeadDetail() {
                     value={engagement.custom_fields[field.field_key] || ''}
                     onChange={(e) => setEngagement({
                       ...engagement,
-                      custom_fields: { ...engagement.custom_fields, [field.field_key]: e.target.value },
+                      custom_fields: { ...(engagement.custom_fields || {}), [field.field_key]: e.target.value },
                     })}
                   />
                 )}

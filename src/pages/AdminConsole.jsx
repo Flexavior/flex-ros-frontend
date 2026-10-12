@@ -46,7 +46,7 @@ export default function AdminConsole() {
         <div className="card kpi">
           <div className="kpi-label">Stale task rule</div>
           <div className="kpi-value">{data.crm?.stale_task_days ?? 5}d</div>
-          <div className="kpi-sub">prefix {data.crm?.client_id_prefix ?? 'CUS'}</div>
+          <div className="kpi-sub">Client IDs: {data.crm?.client_id_format ?? 'YYMMDD_C{n}'}</div>
         </div>
         <div className="card kpi">
           <div className="kpi-label">Inbox live (Reverb)</div>

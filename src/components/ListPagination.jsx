@@ -15,7 +15,7 @@ export default function ListPagination({ meta, onPageChange, onPerPageChange }) 
       <span className="kpi-sub">
         Showing {meta.from ?? 0}–{meta.to ?? 0} of {meta.total}
       </span>
-      <label className="kpi-sub" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <label className="kpi-sub" style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
         Per page
         <select value={perPage} onChange={(e) => onPerPageChange(Number(e.target.value))}>
           {[25, 50].map((n) => (

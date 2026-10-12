@@ -415,3 +415,52 @@ input, select, textarea {
 .badge.channel-viber { background: var(--status-purple-bg); color: var(--status-viber-text); }
 .badge.channel-line { background: var(--status-success-bg); color: var(--status-line-text); }
 .badge.channel-outlook { background: var(--status-outlook-bg); color: var(--status-outlook-text); }
+
+.list-table-state {
+  text-align: center;
+  padding: 24px 16px !important;
+  vertical-align: middle;
+}
+
+.list-loading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.list-loading-mark-frame {
+  position: relative;
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  overflow: hidden;
+  border-radius: 50%;
+  animation: list-spin 0.85s linear infinite;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.list-loading-mark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 38px;
+  height: 36px;
+  max-width: none;
+  object-fit: cover;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .list-loading-mark-frame {
+    animation: none;
+  }
+}
+
+@keyframes list-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

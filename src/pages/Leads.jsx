@@ -6,6 +6,9 @@ import LeadJourneyGuide from '../components/LeadJourneyGuide.jsx';
 import PicklistSelect from '../components/PicklistSelect.jsx';
 import ListPagination from '../components/ListPagination.jsx';
 import ListSearchInput from '../components/ListSearchInput.jsx';
+import ListTablePlaceholder from '../components/ListTablePlaceholder.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { leadListEmptyMessage } from '../utils/crmListEmptyMessages.js';
 import { listMetaFromResponse } from '../utils/listPagination.js';
 import { help } from '../content/helpText.js';
 
@@ -17,6 +20,7 @@ function formatLeadCustomValue(lead, field) {
 }
 
 export default function Leads() {
+  const { user } = useAuth();
   const [leads, setLeads] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [schema, setSchema] = useState({ picklists: {}, custom_fields: { lead: [] } });
@@ -44,6 +48,8 @@ export default function Leads() {
   const [meta, setMeta] = useState(null);
   const [searchDraft, setSearchDraft] = useState('');
   const [search, setSearch] = useState('');
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchDraft.trim()), 350);
@@ -59,12 +65,17 @@ export default function Leads() {
     const q = search.trim();
     if (q) params.q = q;
 
+    setListLoading(true);
+    setListError(null);
     api.get('/leads', { params })
       .then((res) => {
         setLeads(res.data.data || []);
         setMeta(listMetaFromResponse(res.data));
       })
-      .catch((err) => setError(err.response?.data?.message || 'Failed to load leads.'));
+      .catch((err) => {
+        setListError(err.response?.data?.message || 'Failed to load leads. Try again.');
+      })
+      .finally(() => setListLoading(false));
   };
 
   useEffect(() => {
@@ -271,27 +282,28 @@ export default function Leads() {
       )}
 
       <div className="card">
-        <ListSearchInput
-          id="leads-list-search"
-          value={searchDraft}
-          onChange={setSearchDraft}
-          placeholder="Name, company, or client ID"
-        />
         <div className="grid cols-3">
           <div className="form-row">
-            <label>Filter by stage</label>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <label htmlFor="leads-filter-stage">Filter by stage</label>
+            <select id="leads-filter-stage" name="current_stage" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">All</option>
               {(schema.picklists?.current_stage || []).map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div className="form-row">
-            <label>Filter by source</label>
-            <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}>
+            <label htmlFor="leads-filter-source">Filter by source</label>
+            <select id="leads-filter-source" name="lead_source" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}>
               <option value="">All</option>
               {(schema.picklists?.lead_source || []).map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
+          <ListSearchInput
+            id="leads-list-search"
+            inline
+            value={searchDraft}
+            onChange={setSearchDraft}
+            placeholder="Name, company, or client ID"
+          />
         </div>
         {error && <p className="error-text">{error}</p>}
         <div className="table-scroll" role="region" aria-label="Leads list">
@@ -339,11 +351,16 @@ export default function Leads() {
                   <td>{l.status_updated_at ? new Date(l.status_updated_at).toLocaleDateString() : '—'}</td>
                 </tr>
               ))}
-              {!leads.length && (
-                <tr>
-                  <td colSpan={12 + (schema.custom_fields?.lead || []).length} className="kpi-sub">No leads yet.</td>
-                </tr>
-              )}
+              <ListTablePlaceholder
+                colSpan={12 + (schema.custom_fields?.lead || []).length}
+                loading={listLoading}
+                isEmpty={!leads.length}
+                hasActiveFilters={!!(search || statusFilter || sourceFilter)}
+                emptyMessage={leadListEmptyMessage(user)}
+                filteredEmptyMessage="No leads match your search or filters."
+                error={listError}
+                onRetry={load}
+              />
             </tbody>
           </table>
         </div>

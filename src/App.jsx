@@ -1,13 +1,13 @@
 import React from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext.jsx';
 import Login from './pages/Login.jsx';
 import SsoCallback from './pages/SsoCallback.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Leads from './pages/Leads.jsx';
-import LeadDetail from './pages/LeadDetail.jsx';
+import LeadDetailPage from './pages/LeadDetailPage.jsx';
 import Customers from './pages/Customers.jsx';
-import CustomerDetail from './pages/CustomerDetail.jsx';
+import CustomerDetailPage from './pages/CustomerDetailPage.jsx';
 import Products from './pages/Products.jsx';
 import Marketing from './pages/Marketing.jsx';
 import Settings from './pages/Settings.jsx';
@@ -16,7 +16,12 @@ import UserProvisioning from './pages/UserProvisioning.jsx';
 import Inbox from './pages/Inbox.jsx';
 import Documents from './pages/Documents.jsx';
 import Layout from './components/Layout.jsx';
-import { canUseCrmModules, INBOX_ROLES, isAdminUser } from './auth/crmAccess.js';
+import {
+  canUseCrmModules,
+  canUseSalesCrmModules,
+  INBOX_ROLES,
+  isAdminUser,
+} from './auth/crmAccess.js';
 
 function CrmOperational({ children }) {
   const { user } = useAuth();
@@ -35,6 +40,23 @@ function AdminDefaultIndex() {
     return <Navigate to="/admin" replace />;
   }
   return <Dashboard />;
+}
+
+function SalesCrmAccess({ children }) {
+  const { user } = useAuth();
+
+  if (!canUseSalesCrmModules(user)) {
+    return (
+      <div className="card" role="alert">
+        <h1 className="page-title">Access unavailable</h1>
+        <p>Leads and Customers are not available for your role.</p>
+        <p className="kpi-sub">Contact your supervisor if you need access to this information.</p>
+        <Link to="/">Return to dashboard</Link>
+      </div>
+    );
+  }
+
+  return children;
 }
 
 function Protected({ children, roles = null }) {
@@ -59,10 +81,10 @@ export default function App() {
       <Route path="/auth/sso/callback" element={<SsoCallback />} />
       <Route element={<Protected><Layout /></Protected>}>
         <Route path="/" element={<CrmOperational><AdminDefaultIndex /></CrmOperational>} />
-        <Route path="/leads" element={<CrmOperational><Leads /></CrmOperational>} />
-        <Route path="/leads/:id" element={<CrmOperational><LeadDetail /></CrmOperational>} />
-        <Route path="/customers" element={<CrmOperational><Customers /></CrmOperational>} />
-        <Route path="/customers/:id" element={<CrmOperational><CustomerDetail /></CrmOperational>} />
+        <Route path="/leads" element={<CrmOperational><SalesCrmAccess><Leads /></SalesCrmAccess></CrmOperational>} />
+        <Route path="/leads/:id" element={<CrmOperational><SalesCrmAccess><LeadDetailPage /></SalesCrmAccess></CrmOperational>} />
+        <Route path="/customers" element={<CrmOperational><SalesCrmAccess><Customers /></SalesCrmAccess></CrmOperational>} />
+        <Route path="/customers/:id" element={<CrmOperational><SalesCrmAccess><CustomerDetailPage /></SalesCrmAccess></CrmOperational>} />
         <Route path="/documents" element={<CrmOperational><Documents /></CrmOperational>} />
         <Route path="/products" element={<CrmOperational><Products /></CrmOperational>} />
         <Route path="/marketing" element={<CrmOperational><Marketing /></CrmOperational>} />

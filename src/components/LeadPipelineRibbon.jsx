@@ -4,7 +4,7 @@ import React from 'react';
 const STAGES = [
   { key: 'capture', label: 'Capture', match: ['New'] },
   { key: 'qualify', label: 'Qualify', match: ['Contacted', 'Qualified'] },
-  { key: 'appoint', label: 'Appoint', match: ['Demo / Meeting', 'Proposal', 'Negotiation'] },
+  { key: 'appoint', label: 'Appoint', match: ['Demo / Meeting', 'Proposal', 'Proposal Sent', 'Negotiation'] },
   { key: 'convert', label: 'Convert', match: ['Won'] },
   { key: 'contract', label: 'Contract', match: [] },
 ];

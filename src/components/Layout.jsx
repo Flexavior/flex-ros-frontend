@@ -1,13 +1,19 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { canUseCrmModules, INBOX_ROLES, isAdminUser } from '../auth/crmAccess.js';
+import {
+  canUseCrmModules,
+  canUseSalesCrmModules,
+  INBOX_ROLES,
+  isAdminUser,
+} from '../auth/crmAccess.js';
 
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const isAdmin = isAdminUser(user);
   const showCrm = canUseCrmModules(user);
+  const showSalesCrm = canUseSalesCrmModules(user);
   const showInbox = showCrm && INBOX_ROLES.includes(user?.role?.code);
   const canProvision = ['admin', 'senior_management', 'ceo'].includes(user?.role?.code);
 
@@ -25,9 +31,9 @@ export default function Layout() {
           {showCrm && (
             <>
               <NavLink to="/" end>Dashboard</NavLink>
-              <NavLink to="/leads">Leads</NavLink>
+              {showSalesCrm && <NavLink to="/leads">Leads</NavLink>}
               {showInbox && <NavLink to="/inbox">Inbox</NavLink>}
-              <NavLink to="/customers">Customers</NavLink>
+              {showSalesCrm && <NavLink to="/customers">Customers</NavLink>}
               <NavLink to="/documents">Documents</NavLink>
               <NavLink to="/products">Products &amp; Services</NavLink>
               <NavLink to="/marketing">Marketing</NavLink>

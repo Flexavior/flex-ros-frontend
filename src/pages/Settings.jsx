@@ -80,7 +80,6 @@ export default function Settings() {
           .filter(Boolean);
         await api.put('/settings/general', {
           'crm.stale_task_days': Number(general['crm.stale_task_days']),
-          'crm.client_id_prefix': general['crm.client_id_prefix'],
           'crm.qualify': {
             max_idle_touches: Number(general['crm.qualify']?.max_idle_touches || 4),
             progress_outcomes: qualifyProgressOutcomes.length
@@ -163,13 +162,6 @@ export default function Settings() {
               type="number" min="1" max="90"
               value={general['crm.stale_task_days'] ?? 5}
               onChange={(e) => setGeneral({ ...general, 'crm.stale_task_days': e.target.value })}
-            />
-          </div>
-          <div className="form-row">
-            <label>Client ID prefix (legacy setting; new IDs use YYMMDD_Cn)</label>
-            <input
-              value={general['crm.client_id_prefix'] ?? 'CUS'}
-              onChange={(e) => setGeneral({ ...general, 'crm.client_id_prefix': e.target.value })}
             />
           </div>
           <div className="form-row">

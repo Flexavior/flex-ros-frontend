@@ -5,9 +5,13 @@ export default function ListSearchInput({
   onChange,
   placeholder = 'Search…',
   id = 'list-search',
+  inline = false,
 }) {
   return (
-    <div className="form-row" style={{ marginBottom: 12, maxWidth: 420 }}>
+    <div
+      className="form-row"
+      style={inline ? undefined : { marginBottom: 12, maxWidth: 420 }}
+    >
       <label htmlFor={id} className="kpi-sub">Search</label>
       <input
         id={id}

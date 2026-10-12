@@ -3,16 +3,22 @@ import { Link } from 'react-router-dom';
 import api from '../api/client.js';
 import ListPagination from '../components/ListPagination.jsx';
 import ListSearchInput from '../components/ListSearchInput.jsx';
+import ListTablePlaceholder from '../components/ListTablePlaceholder.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { customerStatusLabel, normalizeCustomerStatus } from '../utils/customerStatus.js';
+import { customerListEmptyMessage } from '../utils/crmListEmptyMessages.js';
 import { listMetaFromResponse } from '../utils/listPagination.js';
 
 export default function Customers() {
+  const { user } = useAuth();
   const [customers, setCustomers] = useState([]);
   const [meta, setMeta] = useState(null);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
   const [searchDraft, setSearchDraft] = useState('');
   const [search, setSearch] = useState('');
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchDraft.trim()), 350);
@@ -26,15 +32,17 @@ export default function Customers() {
     const q = search.trim();
     if (q) params.q = q;
 
+    setListLoading(true);
+    setListError(null);
     api.get('/customers', { params })
       .then((res) => {
         setCustomers(res.data.data || []);
         setMeta(listMetaFromResponse(res.data));
       })
-      .catch(() => {
-        setCustomers([]);
-        setMeta(null);
-      });
+      .catch((err) => {
+        setListError(err.response?.data?.message || 'Failed to load customers. Try again.');
+      })
+      .finally(() => setListLoading(false));
   };
 
   useEffect(load, [page, perPage, search]);
@@ -74,7 +82,16 @@ export default function Customers() {
                   <td><Link to={`/customers/${c.id}`}>Open</Link></td>
                 </tr>
               ))}
-              {!customers.length && <tr><td colSpan={10} className="kpi-sub">No customers yet — convert a lead first.</td></tr>}
+              <ListTablePlaceholder
+                colSpan={10}
+                loading={listLoading}
+                isEmpty={!customers.length}
+                hasActiveFilters={!!search}
+                emptyMessage={customerListEmptyMessage(user)}
+                filteredEmptyMessage="No customers match your search."
+                error={listError}
+                onRetry={load}
+              />
             </tbody>
           </table>
         </div>

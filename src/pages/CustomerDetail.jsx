@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/client.js';
 import MicrosoftEmailPanel from '../components/MicrosoftEmailPanel.jsx';
@@ -20,10 +20,22 @@ export default function CustomerDetail() {
 
   useMicrosoftOAuthReturn(setMessage, setError);
 
+  useLayoutEffect(() => {
+    setError(null);
+    setMessage(null);
+    setData(null);
+  }, [id]);
+
   const load = () => {
     api.get(`/customers/${id}`)
-      .then((res) => setData(res.data))
-      .catch((err) => setError(err.response?.data?.message || 'Failed to load customer.'));
+      .then((res) => {
+        setData(res.data);
+        setError(null);
+      })
+      .catch((err) => {
+        setData(null);
+        setError(err.response?.data?.message || 'Failed to load customer.');
+      });
   };
 
   useEffect(load, [id]);
@@ -50,8 +62,13 @@ export default function CustomerDetail() {
     }
   }, [data?.customer?.id]);
 
-  if (error) return <div className="card"><p className="error-text">{error}</p></div>;
-  if (!data) return <div className="card">Loading…</div>;
+  if (!data) {
+    return (
+      <div className="card">
+        {error ? <p className="error-text">{error}</p> : <p className="kpi-sub">Loading…</p>}
+      </div>
+    );
+  }
 
   const { customer, checklists } = data;
 

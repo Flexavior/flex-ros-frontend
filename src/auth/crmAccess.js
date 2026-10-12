@@ -10,6 +10,15 @@ export const CRM_OPERATIONAL_ROLES = [
   'customer_service',
 ];
 
+export const SALES_CRM_ROLES = [
+  'ceo',
+  'senior_management',
+  'supervisor',
+  'senior_staff',
+  'staff',
+  'sales',
+];
+
 export const INBOX_ROLES = CRM_OPERATIONAL_ROLES.filter((r) => r !== 'admin');
 
 export function isAdminUser(user) {
@@ -18,6 +27,10 @@ export function isAdminUser(user) {
 
 export function canUseCrmModules(user) {
   return user?.role?.code && CRM_OPERATIONAL_ROLES.includes(user.role.code);
+}
+
+export function canUseSalesCrmModules(user) {
+  return user?.role?.code && SALES_CRM_ROLES.includes(user.role.code);
 }
 
 export function defaultHomeFor(user) {
