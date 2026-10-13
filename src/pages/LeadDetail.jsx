@@ -318,6 +318,7 @@ export default function LeadDetail() {
         converted={lead.status === 'converted'}
         onJumpToSection={jumpToSection}
         onEmailClick={openEmail}
+        emailHint={emailHint}
       />
 
       <LeadEmailModal

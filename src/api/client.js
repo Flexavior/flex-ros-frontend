@@ -18,10 +18,15 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401 && !err.config?.url?.includes('/auth/login')) {
+    const url = err.config?.url || '';
+    if (err.response?.status === 401 && !url.includes('/auth/login') && !url.includes('/auth/me')) {
       localStorage.removeItem('mss_token');
       if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+        const returnPath = window.location.pathname + window.location.search;
+        const q = returnPath && returnPath !== '/'
+          ? `?returnUrl=${encodeURIComponent(returnPath)}`
+          : '';
+        window.location.href = `/login${q}`;
       }
     }
     return Promise.reject(err);

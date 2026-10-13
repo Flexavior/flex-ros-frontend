@@ -46,6 +46,7 @@ export default function LeadPipelineRibbon({
   converted,
   onJumpToSection,
   onEmailClick,
+  emailHint = 'Send email (Microsoft 365)',
 }) {
   const active = activeChipKey(currentStage, converted);
 
@@ -69,7 +70,7 @@ export default function LeadPipelineRibbon({
         type="button"
         className="pipeline-ribbon-email"
         aria-label="Send email to lead"
-        title={emailDisabled ? 'Add lead or primary contact email' : 'Send email (Microsoft 365)'}
+        title={emailHint}
         onClick={() => (onEmailClick ? onEmailClick() : jump('lead-section-email'))}
       >
         <EmailIcon />

@@ -25,11 +25,13 @@ import {
 
 function CrmOperational({ children }) {
   const { user } = useAuth();
+  const location = useLocation();
   if (isAdminUser(user)) {
     return <Navigate to="/admin" replace />;
   }
   if (!canUseCrmModules(user)) {
-    return <Navigate to="/login" replace />;
+    const returnUrl = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?returnUrl=${returnUrl}`} replace />;
   }
   return children;
 }
