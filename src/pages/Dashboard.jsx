@@ -79,9 +79,9 @@ export default function Dashboard() {
           <h3>Pipeline Funnel</h3>
           <table>
             <tbody>
-              {Object.entries(metrics.funnel || {}).map(([status, count]) => (
-                <tr key={status}>
-                  <td><span className={`badge ${status}`}>{status}</span></td>
+              {Object.entries(metrics.funnel || {}).map(([stage, count]) => (
+                <tr key={stage}>
+                  <td><span className="badge pending">{stage}</span></td>
                   <td>{count}</td>
                 </tr>
               ))}

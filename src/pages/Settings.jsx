@@ -10,6 +10,8 @@ const ADMIN_PICKLIST_KEYS = [
   'lead_source',
   'product_interest',
   'current_stage',
+  'engagement_channel',
+  'contact_method',
 ];
 
 export default function Settings() {

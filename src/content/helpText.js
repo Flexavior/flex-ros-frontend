@@ -8,7 +8,7 @@ export const help = {
   leadPipelineStage:
     'Current stage reflects pipeline position. Changing stage updates the stale-task clock and reporting funnel.',
   leadFollowUp:
-    'Log each touch (call, message, meeting). Outcome and next follow-up date reset the “no change” stale alert on the dashboard.',
+    'Channel = platform (Phone, Facebook, Viber, Email, …). Contact method = how you touched them (Call, Email, SMS/Message, Meeting). Outcome and next follow-up reset the stale alert.',
   leadStale:
     'If stage or engagement is unchanged longer than the system threshold (Settings), the lead appears as stale on the dashboard.',
   leadCustomFields:

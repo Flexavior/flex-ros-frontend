@@ -8,6 +8,8 @@ import LeadPipelineRibbon from '../components/LeadPipelineRibbon.jsx';
 import PicklistSelect from '../components/PicklistSelect.jsx';
 import { help } from '../content/helpText.js';
 import { normalizeLeadPayload } from '../utils/normalizeLead.js';
+import ActionToast from '../components/ActionToast.jsx';
+import { useActionFeedback } from '../hooks/useActionFeedback.js';
 
 const SECTION_IDS = [
   'lead-section-capture',
@@ -34,9 +36,9 @@ export default function LeadDetail() {
   const [lead, setLead] = useState(null);
   const [schema, setSchema] = useState({ picklists: {}, custom_fields: { lead: [], engagement: [] } });
   const [error, setError] = useState(null);
-  const [message, setMessage] = useState(null);
+  const { feedback, busy, runAction, clearFeedback } = useActionFeedback();
   const [engagement, setEngagement] = useState({
-    channel: 'call',
+    channel: '',
     summary: '',
     contact_method: '',
     purpose: '',
@@ -49,6 +51,7 @@ export default function LeadDetail() {
   const [appointment, setAppointment] = useState({ title: '', scheduled_at: '', location: '' });
   const [convertProducts, setConvertProducts] = useState([]);
   const [convertAgreedPrices, setConvertAgreedPrices] = useState({});
+  const [convertAgreedUnits, setConvertAgreedUnits] = useState({});
   const [convertClientId, setConvertClientId] = useState('');
   const [products, setProducts] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -73,7 +76,7 @@ export default function LeadDetail() {
 
   useLayoutEffect(() => {
     setError(null);
-    setMessage(null);
+    clearFeedback();
     setLead(null);
   }, [id]);
 
@@ -124,6 +127,7 @@ export default function LeadDetail() {
         setSchema(nextSchema);
         setEngagement((prev) => ({
           ...prev,
+          channel: prev.channel || (nextSchema.picklists?.engagement_channel?.[0] || 'Phone'),
           contact_method: prev.contact_method || (nextSchema.picklists?.contact_method?.[0] || ''),
           activity_outcome: prev.activity_outcome || (nextSchema.picklists?.activity_outcome?.[0] || ''),
         }));
@@ -152,91 +156,83 @@ export default function LeadDetail() {
     );
   }
 
-  const changeStatus = async (current_stage) => {
-    try {
-      await api.put(`/leads/${id}`, { current_stage });
-      setMessage('Stage updated.');
-      load();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Update failed.');
-    }
-  };
+  const changeStatus = (current_stage) => runAction(
+    () => api.put(`/leads/${id}`, { current_stage }).then(() => load()),
+    { successMessage: 'Stage updated.', errorMessage: 'Update failed.' },
+  );
 
-  const saveCapture = async (e) => {
+  const saveCapture = (e) => {
     e.preventDefault();
-    try {
-      await api.put(`/leads/${id}`, capture);
-      setMessage('Capture fields updated.');
-      load();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Could not save capture fields.');
-    }
+    return runAction(
+      () => api.put(`/leads/${id}`, capture).then(() => load()),
+      { successMessage: 'Capture fields saved.', errorMessage: 'Could not save capture fields.' },
+    );
   };
 
-  const saveQualify = async (e) => {
+  const saveQualify = (e) => {
     e.preventDefault();
-    try {
-      await api.put(`/leads/${id}`, qualify);
-      setMessage('Qualification fields updated.');
-      load();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Could not save qualification fields.');
-    }
+    return runAction(
+      () => api.put(`/leads/${id}`, qualify).then(() => load()),
+      { successMessage: 'Qualification fields saved.', errorMessage: 'Could not save qualification fields.' },
+    );
   };
 
-  const logEngagement = async (e) => {
+  const logEngagement = (e) => {
     e.preventDefault();
-    try {
-      await api.post(`/leads/${id}/engagements`, engagement);
-      setEngagement({
-        channel: 'call',
-        summary: '',
-        contact_method: schema.picklists?.contact_method?.[0] || '',
-        purpose: '',
-        activity_outcome: schema.picklists?.activity_outcome?.[0] || '',
-        next_action: '',
-        next_follow_up_at: '',
-        notes: '',
-        custom_fields: {},
-      });
-      setMessage('Engagement logged — stale timer reset.');
-      load();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Could not log engagement.');
-    }
+    return runAction(
+      () => api.post(`/leads/${id}/engagements`, engagement).then(() => {
+        setEngagement({
+          channel: schema.picklists?.engagement_channel?.[0] || 'Phone',
+          summary: '',
+          contact_method: schema.picklists?.contact_method?.[0] || '',
+          purpose: '',
+          activity_outcome: schema.picklists?.activity_outcome?.[0] || '',
+          next_action: '',
+          next_follow_up_at: '',
+          notes: '',
+          custom_fields: {},
+        });
+        load();
+      }),
+      { successMessage: 'Engagement logged — stale timer reset.', errorMessage: 'Could not log engagement.' },
+    );
   };
 
-  const scheduleAppointment = async (e) => {
+  const scheduleAppointment = (e) => {
     e.preventDefault();
-    try {
-      await api.post('/appointments', { ...appointment, lead_id: Number(id) });
-      setAppointment({ title: '', scheduled_at: '', location: '' });
-      setMessage('Appointment scheduled.');
-      load();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Could not schedule appointment.');
-    }
+    return runAction(
+      () => api.post('/appointments', { ...appointment, lead_id: Number(id) }).then(() => {
+        setAppointment({ title: '', scheduled_at: '', location: '' });
+        load();
+      }),
+      { successMessage: 'Appointment scheduled.', errorMessage: 'Could not schedule appointment.' },
+    );
   };
 
-  const convert = async () => {
-    try {
-      const payload = { product_service_ids: convertProducts.map(Number) };
-      const agreed_prices = {};
-      convertProducts.forEach((pid) => {
-        const raw = convertAgreedPrices[pid];
-        if (raw !== undefined && raw !== '') {
-          agreed_prices[pid] = Number(raw);
-        }
-      });
-      if (Object.keys(agreed_prices).length) payload.agreed_prices = agreed_prices;
-      if (convertClientId.trim()) payload.client_id = convertClientId.trim();
-      const res = await api.post(`/leads/${id}/convert`, payload);
-      setMessage(`Converted! Client ID: ${res.data.client_id}`);
-      load();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Conversion failed.');
-    }
-  };
+  const convert = () => runAction(async () => {
+    const payload = { product_service_ids: convertProducts.map(Number) };
+    const agreed_prices = {};
+    const agreed_units = {};
+    convertProducts.forEach((pid) => {
+      const rawPrice = convertAgreedPrices[pid];
+      if (rawPrice !== undefined && rawPrice !== '') {
+        agreed_prices[pid] = Number(rawPrice);
+      }
+      const rawUnit = convertAgreedUnits[pid];
+      if (rawUnit !== undefined && rawUnit !== '') {
+        agreed_units[pid] = Number(rawUnit);
+      }
+    });
+    if (Object.keys(agreed_prices).length) payload.agreed_prices = agreed_prices;
+    if (Object.keys(agreed_units).length) payload.agreed_units = agreed_units;
+    if (convertClientId.trim()) payload.client_id = convertClientId.trim();
+    const res = await api.post(`/leads/${id}/convert`, payload);
+    load();
+    return res;
+  }, {
+    successMessage: 'Converted to customer successfully.',
+    errorMessage: 'Conversion failed.',
+  });
 
   const updateContact = (index, key, value) => {
     setContacts((prev) => prev.map((c, i) => {
@@ -263,10 +259,10 @@ export default function LeadDetail() {
     setContacts((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const saveContacts = async (e) => {
+  const saveContacts = (e) => {
     e.preventDefault();
-    try {
-      await api.put(`/leads/${id}`, {
+    return runAction(
+      () => api.put(`/leads/${id}`, {
         contacts: contacts.map((c) => ({
           id: c.id,
           name: c.name || null,
@@ -276,12 +272,9 @@ export default function LeadDetail() {
           viber_id: c.viber_id || null,
           is_primary: !!c.is_primary,
         })),
-      });
-      setMessage('Lead contacts updated.');
-      load();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Could not save contacts.');
-    }
+      }).then(() => load()),
+      { successMessage: 'Contacts saved.', errorMessage: 'Could not save contacts.' },
+    );
   };
 
   const canConvert = !!lead.convert_eligible;
@@ -299,8 +292,8 @@ export default function LeadDetail() {
         <h1 className="page-title">{lead.name} {lead.company ? `· ${lead.company}` : ''}</h1>
         <button className="secondary" onClick={() => navigate('/leads')}>← Back</button>
       </div>
-      {message && <p className="success-text">{message}</p>}
       {error && <p className="error-text">{error}</p>}
+      <ActionToast feedback={feedback} busy={busy} onDismiss={clearFeedback} />
       <LeadPipelineRibbon
         currentStage={lead.current_stage}
         converted={lead.status === 'converted'}
@@ -370,7 +363,7 @@ export default function LeadDetail() {
               options={schema.picklists?.product_interest}
               onChange={(v) => setCapture({ ...capture, product_interest: v })}
             />
-            <button type="submit" className="small">Save capture</button>
+            <button type="submit" className="small" disabled={busy}>Save capture</button>
           </form>
         </AccordionSection>
 
@@ -408,7 +401,7 @@ export default function LeadDetail() {
               options={schema.picklists?.contact_role}
               onChange={(v) => setQualify({ ...qualify, contact_role: v })}
             />
-            <button type="submit" className="small">Save qualification</button>
+            <button type="submit" className="small" disabled={busy}>Save qualification</button>
           </form>
           <p className="kpi-sub">Add all known contacts and mark one primary contact.</p>
           <form onSubmit={saveContacts}>
@@ -444,7 +437,7 @@ export default function LeadDetail() {
             {!contacts.length && <p className="kpi-sub">No contacts yet.</p>}
             <div style={{ display: 'flex', gap: 8 }}>
               <button type="button" className="small" onClick={addContact}>+ Add contact</button>
-              <button type="submit" className="small">Save contacts</button>
+              <button type="submit" className="small" disabled={busy}>Save contacts</button>
             </div>
           </form>
 
@@ -458,7 +451,7 @@ export default function LeadDetail() {
           <form onSubmit={logEngagement}>
             <div className="form-row"><label>Channel</label>
               <select value={engagement.channel} onChange={(e) => setEngagement({ ...engagement, channel: e.target.value })}>
-                {['call', 'visit', 'viber', 'telegram', 'email', 'discord', 'teams'].map((c) => <option key={c}>{c}</option>)}
+                {(schema.picklists?.engagement_channel || []).map((c) => <option key={c} value={c}>{c}</option>)}
               </select></div>
             <div className="form-row"><label>Contact Method</label>
               <select value={engagement.contact_method} onChange={(e) => setEngagement({ ...engagement, contact_method: e.target.value })}>
@@ -504,7 +497,7 @@ export default function LeadDetail() {
                 )}
               </div>
             ))}
-            <button type="submit">Log engagement</button>
+            <button type="submit" disabled={busy}>Log engagement</button>
           </form>
           <h4 style={{ marginTop: 20 }}>Engagement history</h4>
           <table>
@@ -536,7 +529,7 @@ export default function LeadDetail() {
               <input type="datetime-local" value={appointment.scheduled_at} onChange={(e) => setAppointment({ ...appointment, scheduled_at: e.target.value })} required /></div>
             <div className="form-row"><label>Location</label>
               <input value={appointment.location} onChange={(e) => setAppointment({ ...appointment, location: e.target.value })} /></div>
-            <button type="submit">Schedule</button>
+            <button type="submit" disabled={busy}>Schedule</button>
           </form>
           <table style={{ marginTop: 16 }}>
             <thead><tr><th>Title</th><th>When</th><th>Location</th><th>Status</th><th>Outcome</th></tr></thead>
@@ -592,6 +585,13 @@ export default function LeadDetail() {
                       });
                       return kept;
                     });
+                    setConvertAgreedUnits((prev) => {
+                      const kept = {};
+                      next.forEach((pid) => {
+                        if (prev[pid] !== undefined) kept[pid] = prev[pid];
+                      });
+                      return kept;
+                    });
                   }}
                   style={{ height: 110 }}
                 >
@@ -600,26 +600,46 @@ export default function LeadDetail() {
               </div>
               {convertProducts.length > 0 && (
                 <div className="form-row">
-                  <label>Agreed price per product (optional)</label>
+                  <label>Agreed total &amp; units per product (optional)</label>
                   {convertProducts.map((pid) => {
                     const product = products.find((p) => String(p.id) === String(pid));
+                    const agreed = convertAgreedPrices[pid];
+                    const units = convertAgreedUnits[pid];
+                    const unitPreview = (agreed !== undefined && agreed !== '' && units !== undefined && units !== '' && Number(units) > 0)
+                      ? (Number(agreed) / Number(units)).toFixed(2)
+                      : null;
                     return (
-                      <div key={pid} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                        <span style={{ minWidth: 120 }}>{product?.name || pid}</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder={product?.price ? `List ${product.price}` : 'Amount'}
-                          value={convertAgreedPrices[pid] ?? ''}
-                          onChange={(e) => setConvertAgreedPrices({ ...convertAgreedPrices, [pid]: e.target.value })}
-                        />
+                      <div key={pid} style={{ marginBottom: 10 }}>
+                        <div style={{ fontWeight: 600, marginBottom: 4 }}>{product?.name || pid}</div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder={product?.price ? `Agreed total (list ${product.price})` : 'Agreed total'}
+                            value={convertAgreedPrices[pid] ?? ''}
+                            onChange={(e) => setConvertAgreedPrices({ ...convertAgreedPrices, [pid]: e.target.value })}
+                            style={{ flex: '1 1 140px' }}
+                          />
+                          <input
+                            type="number"
+                            step="0.0001"
+                            min="0.0001"
+                            placeholder="Units"
+                            value={convertAgreedUnits[pid] ?? ''}
+                            onChange={(e) => setConvertAgreedUnits({ ...convertAgreedUnits, [pid]: e.target.value })}
+                            style={{ flex: '0 1 100px' }}
+                          />
+                          {unitPreview && (
+                            <span className="kpi-sub">Unit price ≈ {unitPreview}</span>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
                 </div>
               )}
-              <button onClick={convert}>Convert &amp; generate client ID</button>
+              <button type="button" onClick={convert} disabled={busy}>Convert &amp; generate client ID</button>
             </>
           )}
         </AccordionSection>

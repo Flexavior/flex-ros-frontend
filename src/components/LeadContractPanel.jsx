@@ -8,6 +8,7 @@ import api from '../api/client.js';
 export default function LeadContractPanel({ lead, customerId }) {
   const [templates, setTemplates] = useState([]);
   const [agreements, setAgreements] = useState([]);
+  const [customerProducts, setCustomerProducts] = useState([]);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -22,11 +23,15 @@ export default function LeadContractPanel({ lead, customerId }) {
   useEffect(() => {
     if (!customerId) {
       setAgreements([]);
+      setCustomerProducts([]);
       return;
     }
     api.get(`/customers/${customerId}`)
-      .then((res) => setAgreements(res.data?.customer?.agreements || []))
-      .catch((err) => setError(err.response?.data?.message || 'Could not load agreements.'));
+      .then((res) => {
+        setAgreements(res.data?.customer?.agreements || []);
+        setCustomerProducts(res.data?.customer?.products || []);
+      })
+      .catch((err) => setError(err.response?.data?.message || 'Could not load customer contract data.'));
   }, [customerId]);
 
   const download = async (id, name) => {
@@ -73,6 +78,28 @@ export default function LeadContractPanel({ lead, customerId }) {
           {!templates.length && <tr><td colSpan={3} className="kpi-sub">No sales templates available for your role.</td></tr>}
         </tbody>
       </table>
+
+      {converted && customerProducts.length > 0 && (
+        <>
+          <h4 style={{ marginTop: 16 }}>Contract products</h4>
+          <table>
+            <thead>
+              <tr><th>Product</th><th>Agreed total</th><th>Units</th><th>Unit price</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              {customerProducts.map((p) => (
+                <tr key={p.id}>
+                  <td>{p.name}</td>
+                  <td>{p.pivot?.agreed_price ?? '—'}</td>
+                  <td>{p.pivot?.unit ?? '—'}</td>
+                  <td>{p.pivot?.unit_price ?? '—'}</td>
+                  <td>{p.pivot?.status ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
       {converted && (
         <>
