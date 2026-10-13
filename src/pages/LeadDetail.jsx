@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api/client.js';
 import MicrosoftEmailPanel from '../components/MicrosoftEmailPanel.jsx';
-import HelpIcon from '../components/HelpIcon.jsx';
+import AccordionSection from '../components/AccordionSection.jsx';
 import LeadPipelineRibbon from '../components/LeadPipelineRibbon.jsx';
 import PicklistSelect from '../components/PicklistSelect.jsx';
 import { help } from '../content/helpText.js';
@@ -268,7 +268,7 @@ export default function LeadDetail() {
           <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
             {lead.legacy_picklist_warnings.map((w) => (
               <li key={`${w.field}-${w.value}`}>
-                <code>{w.field.replace(/_/g, ' ')}</code>: {w.value}
+                <code>{String(w.field || 'field').replace(/_/g, ' ')}</code>: {w.value ?? '—'}
               </li>
             ))}
           </ul>
@@ -277,12 +277,15 @@ export default function LeadDetail() {
 
       <LeadPipelineRibbon currentStage={lead.current_stage} converted={lead.status === 'converted'} />
 
-      <div className="grid cols-3">
-        <div className="card" id="lead-section-capture">
-          <h3>
-            Pipeline Stage
-            <HelpIcon text={help.leadPipelineStage} label="Help: pipeline stage" />
-          </h3>
+      <div className="lead-detail-sections">
+        <AccordionSection
+          id="lead-section-stage"
+          title="1. Pipeline & capture"
+          subtitle="Move stage and save firmographics"
+          defaultOpen
+          helpText={help.leadPipelineStage}
+          helpTitle="Pipeline stage"
+        >
           <p><span className="badge pending">{lead.current_stage || lead.status}</span></p>
           <div className="form-row">
             <label>Move to</label>
@@ -321,10 +324,195 @@ export default function LeadDetail() {
             />
             <button type="submit" className="small">Save capture</button>
           </form>
-        </div>
+        </AccordionSection>
 
-        <div className="card" id="lead-section-convert">
-          <h3>Convert to Customer</h3>
+        <AccordionSection
+          id="lead-section-qualify"
+          title="2. Qualify & contacts"
+          subtitle="Score the opportunity and maintain contact roster"
+        >
+          <form onSubmit={saveQualify} style={{ marginBottom: 16 }}>
+            <PicklistSelect
+              label="Potential (yield)"
+              value={qualify.interest_level}
+              options={schema.picklists?.interest_level}
+              onChange={(v) => setQualify({ ...qualify, interest_level: v })}
+            />
+            <PicklistSelect
+              label="Buying timeline"
+              value={qualify.buying_timeline}
+              options={schema.picklists?.buying_timeline}
+              onChange={(v) => setQualify({ ...qualify, buying_timeline: v })}
+            />
+            <PicklistSelect
+              label="Primary contact method"
+              value={qualify.primary_contact_method}
+              options={schema.picklists?.contact_method}
+              onChange={(v) => setQualify({ ...qualify, primary_contact_method: v })}
+            />
+            <PicklistSelect
+              label="Primary contact role"
+              value={qualify.contact_role}
+              options={schema.picklists?.contact_role}
+              onChange={(v) => setQualify({ ...qualify, contact_role: v })}
+            />
+            <button type="submit" className="small">Save qualification</button>
+          </form>
+          <p className="kpi-sub">Add all known contacts and mark one primary contact.</p>
+          <form onSubmit={saveContacts}>
+            {(contacts || []).map((contact, index) => (
+              <div key={contact.id || `new-${index}`} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 10, marginBottom: 8 }}>
+                <div className="grid cols-3">
+                  <div className="form-row"><label>Name</label>
+                    <input value={contact.name || ''} onChange={(e) => updateContact(index, 'name', e.target.value)} />
+                  </div>
+                  <div className="form-row"><label>Role</label>
+                    <input value={contact.role || ''} onChange={(e) => updateContact(index, 'role', e.target.value)} />
+                  </div>
+                  <div className="form-row"><label>Email</label>
+                    <input type="email" value={contact.email || ''} onChange={(e) => updateContact(index, 'email', e.target.value)} />
+                  </div>
+                  <div className="form-row"><label>Phone</label>
+                    <input value={contact.phone || ''} onChange={(e) => updateContact(index, 'phone', e.target.value)} />
+                  </div>
+                  <div className="form-row"><label>Viber ID</label>
+                    <input value={contact.viber_id || ''} onChange={(e) => updateContact(index, 'viber_id', e.target.value)} />
+                  </div>
+                  <div className="form-row">
+                    <label>Primary</label>
+                    <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <input type="checkbox" checked={!!contact.is_primary} onChange={(e) => updateContact(index, 'is_primary', e.target.checked)} />
+                      Yes
+                    </label>
+                  </div>
+                </div>
+                <button type="button" className="small danger" onClick={() => removeContact(index)}>Remove</button>
+              </div>
+            ))}
+            {!contacts.length && <p className="kpi-sub">No contacts yet.</p>}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" className="small" onClick={addContact}>+ Add contact</button>
+              <button type="submit" className="small">Save contacts</button>
+            </div>
+          </form>
+        </AccordionSection>
+
+        <AccordionSection
+          id="lead-section-followup"
+          title="3. Follow-up loop"
+          subtitle="Log each touch, set next action, finish the task"
+          defaultOpen
+          helpText={help.leadFollowUp}
+          helpTitle="Follow-up and engagements"
+        >
+          {lead.needs_qualify_review && (
+            <p className="error-text">
+              Qualify review needed: {lead.idle_touch_count} touches without progress outcome.
+            </p>
+          )}
+          <form onSubmit={logEngagement}>
+            <div className="form-row"><label>Channel</label>
+              <select value={engagement.channel} onChange={(e) => setEngagement({ ...engagement, channel: e.target.value })}>
+                {['call', 'visit', 'viber', 'telegram', 'email', 'discord', 'teams'].map((c) => <option key={c}>{c}</option>)}
+              </select></div>
+            <div className="form-row"><label>Contact Method</label>
+              <select value={engagement.contact_method} onChange={(e) => setEngagement({ ...engagement, contact_method: e.target.value })}>
+                {(schema.picklists?.contact_method || []).map((c) => <option key={c} value={c}>{c}</option>)}
+              </select></div>
+            <div className="form-row"><label>Purpose</label>
+              <input value={engagement.purpose} onChange={(e) => setEngagement({ ...engagement, purpose: e.target.value })} /></div>
+            <div className="form-row"><label>Summary *</label>
+              <textarea rows={2} value={engagement.summary} onChange={(e) => setEngagement({ ...engagement, summary: e.target.value })} required /></div>
+            <div className="form-row"><label>Activity Outcome</label>
+              <select value={engagement.activity_outcome} onChange={(e) => setEngagement({ ...engagement, activity_outcome: e.target.value })}>
+                {(schema.picklists?.activity_outcome || []).map((c) => <option key={c} value={c}>{c}</option>)}
+              </select></div>
+            <div className="form-row"><label>Next action</label>
+              <input value={engagement.next_action} onChange={(e) => setEngagement({ ...engagement, next_action: e.target.value })} /></div>
+            <div className="form-row"><label>Next follow-up date</label>
+              <input type="datetime-local" value={engagement.next_follow_up_at} onChange={(e) => setEngagement({ ...engagement, next_follow_up_at: e.target.value })} /></div>
+            <div className="form-row"><label>Notes</label>
+              <textarea rows={2} value={engagement.notes} onChange={(e) => setEngagement({ ...engagement, notes: e.target.value })} /></div>
+            {(schema.custom_fields?.engagement || []).map((field) => (
+              <div className="form-row" key={field.field_key}>
+                <label>{field.label}</label>
+                {field.field_type === 'select' ? (
+                  <select
+                    value={engagement.custom_fields[field.field_key] || ''}
+                    onChange={(e) => setEngagement({
+                      ...engagement,
+                      custom_fields: { ...(engagement.custom_fields || {}), [field.field_key]: e.target.value },
+                    })}
+                  >
+                    <option value="">Select...</option>
+                    {(field.options || []).map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                ) : (
+                  <input
+                    type={field.field_type === 'date' ? 'date' : 'text'}
+                    value={engagement.custom_fields[field.field_key] || ''}
+                    onChange={(e) => setEngagement({
+                      ...engagement,
+                      custom_fields: { ...(engagement.custom_fields || {}), [field.field_key]: e.target.value },
+                    })}
+                  />
+                )}
+              </div>
+            ))}
+            <button type="submit">Log engagement</button>
+          </form>
+          <h4 style={{ marginTop: 20 }}>Engagement history</h4>
+          <table>
+            <tbody>
+              {(lead.engagements || []).map((e) => (
+                <tr key={e.id ?? e.created_at}>
+                  <td>{e.created_at ? new Date(e.created_at).toLocaleDateString() : '—'}</td>
+                  <td>{e.contact_method || e.channel || '—'}</td>
+                  <td>{e.summary || e.purpose || '—'}</td>
+                  <td className="kpi-sub">{e.user?.name}</td>
+                </tr>
+              ))}
+              {!(lead.engagements || []).length && <tr><td className="kpi-sub">No engagements logged.</td></tr>}
+            </tbody>
+          </table>
+        </AccordionSection>
+
+        <AccordionSection
+          id="lead-section-appoint"
+          title="4. Appointments"
+          subtitle="Schedule and track demos or meetings"
+        >
+          <form onSubmit={scheduleAppointment}>
+            <div className="form-row"><label>Title *</label>
+              <input value={appointment.title} onChange={(e) => setAppointment({ ...appointment, title: e.target.value })} required /></div>
+            <div className="form-row"><label>Date &amp; time *</label>
+              <input type="datetime-local" value={appointment.scheduled_at} onChange={(e) => setAppointment({ ...appointment, scheduled_at: e.target.value })} required /></div>
+            <div className="form-row"><label>Location</label>
+              <input value={appointment.location} onChange={(e) => setAppointment({ ...appointment, location: e.target.value })} /></div>
+            <button type="submit">Schedule</button>
+          </form>
+          <table style={{ marginTop: 16 }}>
+            <thead><tr><th>Title</th><th>When</th><th>Location</th><th>Status</th><th>Outcome</th></tr></thead>
+            <tbody>
+              {(lead.appointments || []).map((a) => (
+                <tr key={a.id ?? a.scheduled_at}>
+                  <td>{a.title}</td>
+                  <td>{a.scheduled_at ? new Date(a.scheduled_at).toLocaleString() : '—'}</td>
+                  <td>{a.location}</td>
+                  <td><span className={`badge ${a.status === 'done' ? 'converted' : 'pending'}`}>{a.status}</span></td>
+                  <td>{a.outcome}</td>
+                </tr>
+              ))}
+              {!(lead.appointments || []).length && <tr><td colSpan={5} className="kpi-sub">None scheduled.</td></tr>}
+            </tbody>
+          </table>
+        </AccordionSection>
+
+        <AccordionSection
+          id="lead-section-convert"
+          title="5. Convert to customer"
+          subtitle="Attach products and generate client ID"
+        >
           {lead.status === 'converted' ? (
             <p className="success-text">Already converted.</p>
           ) : !canConvert ? (
@@ -382,197 +570,18 @@ export default function LeadDetail() {
                   })}
                 </div>
               )}
-              <button onClick={convert}>Convert &amp; Generate Client ID</button>
+              <button onClick={convert}>Convert &amp; generate client ID</button>
             </>
           )}
-        </div>
+        </AccordionSection>
 
-        <div className="card" id="lead-section-appoint">
-          <h3>Schedule Appointment</h3>
-          <form onSubmit={scheduleAppointment}>
-            <div className="form-row"><label>Title *</label>
-              <input value={appointment.title} onChange={(e) => setAppointment({ ...appointment, title: e.target.value })} required /></div>
-            <div className="form-row"><label>Date &amp; time *</label>
-              <input type="datetime-local" value={appointment.scheduled_at} onChange={(e) => setAppointment({ ...appointment, scheduled_at: e.target.value })} required /></div>
-            <div className="form-row"><label>Location</label>
-              <input value={appointment.location} onChange={(e) => setAppointment({ ...appointment, location: e.target.value })} /></div>
-            <button type="submit">Schedule</button>
-          </form>
-        </div>
-      </div>
-
-      <MicrosoftEmailPanel sendUrl={`/leads/${id}/email`} disabled={!lead.email} returnPath={`/leads/${id}`} />
-
-      <div className="grid cols-2">
-        <div className="card">
-          <h3>Contacts</h3>
-          <p className="kpi-sub">Add all known contacts and mark one primary contact.</p>
-          <form onSubmit={saveContacts}>
-            {(contacts || []).map((contact, index) => (
-              <div key={contact.id || `new-${index}`} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 10, marginBottom: 8 }}>
-                <div className="grid cols-3">
-                  <div className="form-row"><label>Name</label>
-                    <input value={contact.name || ''} onChange={(e) => updateContact(index, 'name', e.target.value)} />
-                  </div>
-                  <div className="form-row"><label>Role</label>
-                    <input value={contact.role || ''} onChange={(e) => updateContact(index, 'role', e.target.value)} />
-                  </div>
-                  <div className="form-row"><label>Email</label>
-                    <input type="email" value={contact.email || ''} onChange={(e) => updateContact(index, 'email', e.target.value)} />
-                  </div>
-                  <div className="form-row"><label>Phone</label>
-                    <input value={contact.phone || ''} onChange={(e) => updateContact(index, 'phone', e.target.value)} />
-                  </div>
-                  <div className="form-row"><label>Viber ID</label>
-                    <input value={contact.viber_id || ''} onChange={(e) => updateContact(index, 'viber_id', e.target.value)} />
-                  </div>
-                  <div className="form-row">
-                    <label>Primary</label>
-                    <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <input type="checkbox" checked={!!contact.is_primary} onChange={(e) => updateContact(index, 'is_primary', e.target.checked)} />
-                      Yes
-                    </label>
-                  </div>
-                </div>
-                <button type="button" className="small danger" onClick={() => removeContact(index)}>Remove</button>
-              </div>
-            ))}
-            {!contacts.length && <p className="kpi-sub">No contacts yet.</p>}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" className="small" onClick={addContact}>+ Add contact</button>
-              <button type="submit" className="small">Save contacts</button>
-            </div>
-          </form>
-        </div>
-
-        <div className="card" id="lead-section-qualify">
-          <h3>
-            Qualify
-            <HelpIcon text={help.leadFollowUp} label="Help: qualify" />
-          </h3>
-          <form onSubmit={saveQualify} style={{ marginBottom: 16 }}>
-            <PicklistSelect
-              label="Potential (yield)"
-              value={qualify.interest_level}
-              options={schema.picklists?.interest_level}
-              onChange={(v) => setQualify({ ...qualify, interest_level: v })}
-            />
-            <PicklistSelect
-              label="Buying timeline"
-              value={qualify.buying_timeline}
-              options={schema.picklists?.buying_timeline}
-              onChange={(v) => setQualify({ ...qualify, buying_timeline: v })}
-            />
-            <PicklistSelect
-              label="Primary contact method"
-              value={qualify.primary_contact_method}
-              options={schema.picklists?.contact_method}
-              onChange={(v) => setQualify({ ...qualify, primary_contact_method: v })}
-            />
-            <PicklistSelect
-              label="Primary contact role"
-              value={qualify.contact_role}
-              options={schema.picklists?.contact_role}
-              onChange={(v) => setQualify({ ...qualify, contact_role: v })}
-            />
-            <button type="submit" className="small">Save qualification</button>
-          </form>
-          <h3>
-            Log Engagement (follow-up)
-          </h3>
-          {lead.needs_qualify_review && (
-            <p className="error-text">
-              Qualify review needed: {lead.idle_touch_count} touches without progress outcome.
-            </p>
-          )}
-          <form onSubmit={logEngagement}>
-            <div className="form-row"><label>Channel</label>
-              <select value={engagement.channel} onChange={(e) => setEngagement({ ...engagement, channel: e.target.value })}>
-                {['call', 'visit', 'viber', 'telegram', 'email', 'discord', 'teams'].map((c) => <option key={c}>{c}</option>)}
-              </select></div>
-            <div className="form-row"><label>Contact Method</label>
-              <select value={engagement.contact_method} onChange={(e) => setEngagement({ ...engagement, contact_method: e.target.value })}>
-                {(schema.picklists?.contact_method || []).map((c) => <option key={c} value={c}>{c}</option>)}
-              </select></div>
-            <div className="form-row"><label>Purpose</label>
-              <input value={engagement.purpose} onChange={(e) => setEngagement({ ...engagement, purpose: e.target.value })} /></div>
-            <div className="form-row"><label>Summary *</label>
-              <textarea rows={2} value={engagement.summary} onChange={(e) => setEngagement({ ...engagement, summary: e.target.value })} required /></div>
-            <div className="form-row"><label>Activity Outcome</label>
-              <select value={engagement.activity_outcome} onChange={(e) => setEngagement({ ...engagement, activity_outcome: e.target.value })}>
-                {(schema.picklists?.activity_outcome || []).map((c) => <option key={c} value={c}>{c}</option>)}
-              </select></div>
-            <div className="form-row"><label>Next action</label>
-              <input value={engagement.next_action} onChange={(e) => setEngagement({ ...engagement, next_action: e.target.value })} /></div>
-            <div className="form-row"><label>Next follow-up date</label>
-              <input type="datetime-local" value={engagement.next_follow_up_at} onChange={(e) => setEngagement({ ...engagement, next_follow_up_at: e.target.value })} /></div>
-            <div className="form-row"><label>Notes</label>
-              <textarea rows={2} value={engagement.notes} onChange={(e) => setEngagement({ ...engagement, notes: e.target.value })} /></div>
-            {(schema.custom_fields?.engagement || []).map((field) => (
-              <div className="form-row" key={field.field_key}>
-                <label>{field.label}</label>
-                {field.field_type === 'select' ? (
-                  <select
-                    value={engagement.custom_fields[field.field_key] || ''}
-                    onChange={(e) => setEngagement({
-                      ...engagement,
-                      custom_fields: { ...(engagement.custom_fields || {}), [field.field_key]: e.target.value },
-                    })}
-                  >
-                    <option value="">Select...</option>
-                    {(field.options || []).map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                  </select>
-                ) : (
-                  <input
-                    type={field.field_type === 'date' ? 'date' : 'text'}
-                    value={engagement.custom_fields[field.field_key] || ''}
-                    onChange={(e) => setEngagement({
-                      ...engagement,
-                      custom_fields: { ...(engagement.custom_fields || {}), [field.field_key]: e.target.value },
-                    })}
-                  />
-                )}
-              </div>
-            ))}
-            <button type="submit">Log Engagement</button>
-          </form>
-        </div>
-
-        <div className="card">
-          <h3>Engagement History</h3>
-          <table>
-            <tbody>
-              {(lead.engagements || []).map((e) => (
-                <tr key={e.id}>
-                  <td>{new Date(e.created_at).toLocaleDateString()}</td>
-                  <td>{e.contact_method || e.channel || '—'}</td>
-                  <td>{e.summary || e.purpose || '—'}</td>
-                  <td className="kpi-sub">{e.user?.name}</td>
-                </tr>
-              ))}
-              {!(lead.engagements || []).length && <tr><td className="kpi-sub">No engagements logged.</td></tr>}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="card">
-        <h3>Appointments</h3>
-        <table>
-          <thead><tr><th>Title</th><th>When</th><th>Location</th><th>Status</th><th>Outcome</th></tr></thead>
-          <tbody>
-            {(lead.appointments || []).map((a) => (
-              <tr key={a.id}>
-                <td>{a.title}</td>
-                <td>{new Date(a.scheduled_at).toLocaleString()}</td>
-                <td>{a.location}</td>
-                <td><span className={`badge ${a.status === 'done' ? 'converted' : 'pending'}`}>{a.status}</span></td>
-                <td>{a.outcome}</td>
-              </tr>
-            ))}
-            {!(lead.appointments || []).length && <tr><td colSpan={5} className="kpi-sub">None scheduled.</td></tr>}
-          </tbody>
-        </table>
+        <AccordionSection
+          id="lead-section-email"
+          title="6. Email (Microsoft 365)"
+          subtitle="Send from your linked mailbox"
+        >
+          <MicrosoftEmailPanel sendUrl={`/leads/${id}/email`} disabled={!lead.email} returnPath={`/leads/${id}`} />
+        </AccordionSection>
       </div>
     </div>
   );

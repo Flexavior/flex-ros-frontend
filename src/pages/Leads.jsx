@@ -132,7 +132,7 @@ export default function Leads() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 className="page-title">
           Leads
-          <HelpIcon text={help.leadsOverview} label="Help: leads list" />
+          <HelpIcon text={help.leadsOverview} title="Leads list" label="Help: leads list" />
         </h1>
         <button onClick={() => setShowForm(!showForm)}>{showForm ? 'Close' : '+ New Lead'}</button>
       </div>
@@ -151,7 +151,7 @@ export default function Leads() {
             <div className="card kpi kpi-compact">
               <div className="kpi-label">Stale</div>
               <div className="kpi-value">{metrics.stale_tasks?.count ?? 0}</div>
-              <HelpIcon text={help.leadStale} label="Help: stale leads" />
+              <HelpIcon text={help.leadStale} title="Stale leads" label="Help: stale leads" />
             </div>
             <div className="card kpi kpi-compact">
               <div className="kpi-label">Appointments (7d)</div>
@@ -167,7 +167,7 @@ export default function Leads() {
         <form className="card" onSubmit={submit}>
           <h3 className="form-section-title">
             New lead
-            <HelpIcon text={help.leadGeneration} label="Help: create lead" />
+            <HelpIcon text={help.leadGeneration} title="Create lead" label="Help: create lead" />
           </h3>
           <div className="grid cols-3">
             <div className="form-row"><label>Name *</label>
@@ -229,7 +229,7 @@ export default function Leads() {
             <div className="grid cols-3">
               <p className="kpi-sub" style={{ gridColumn: '1 / -1' }}>
                 Custom fields
-                <HelpIcon text={help.leadCustomFields} label="Help: custom fields" />
+                <HelpIcon text={help.leadCustomFields} title="Custom fields" label="Help: custom fields" />
               </p>
               {schema.custom_fields.lead.map((field) => (
                 <div className="form-row" key={field.field_key}>
