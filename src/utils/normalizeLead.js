@@ -20,8 +20,13 @@ export function normalizeLeadPayload(data) {
     ? data.customer
     : null;
 
+  const organizationType = data.organization_type ?? data.customer_type ?? null;
+  const leadSource = data.lead_source ?? data.source ?? null;
+
   return {
     ...data,
+    organization_type: organizationType,
+    lead_source: leadSource,
     name: data.name != null && String(data.name).trim() !== '' ? String(data.name) : 'Unnamed lead',
     customer,
     owner: data.owner && typeof data.owner === 'object' ? data.owner : null,

@@ -13,6 +13,10 @@ export const help = {
     'If stage or engagement is unchanged longer than the system threshold (Settings), the lead appears as stale on the dashboard.',
   leadCustomFields:
     'Extra columns come from CRM field definitions (admin/DB). Values are stored per lead in custom_fields JSON.',
+  leadOrganizationType:
+    'Organization type is who the buyer is (e.g. Private School). Customer segment is optional size band (SME, Enterprise). Lead source is how they heard about you — set by sales on capture.',
+  leadSource:
+    'Lead source is the marketing/sales channel (Referrals, Website, Events). Removing an option in Settings does not erase stored values on existing leads; update the lead or restore the option if you see a legacy hint.',
   ssoProvisioning:
     'Microsoft SSO creates users with the Staff role until Senior Management assigns Sales, Marketing, or Customer Service.',
   reverbInbox:

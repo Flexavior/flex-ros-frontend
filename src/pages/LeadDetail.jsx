@@ -1,12 +1,32 @@
-import React, { useEffect, useLayoutEffect, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api/client.js';
 import MicrosoftEmailPanel from '../components/MicrosoftEmailPanel.jsx';
 import AccordionSection from '../components/AccordionSection.jsx';
+import LeadContractPanel from '../components/LeadContractPanel.jsx';
 import LeadPipelineRibbon from '../components/LeadPipelineRibbon.jsx';
 import PicklistSelect from '../components/PicklistSelect.jsx';
 import { help } from '../content/helpText.js';
 import { normalizeLeadPayload } from '../utils/normalizeLead.js';
+
+const SECTION_IDS = [
+  'lead-section-capture',
+  'lead-section-qualify',
+  'lead-section-appoint',
+  'lead-section-convert',
+  'lead-section-contract',
+  'lead-section-email',
+];
+
+function LegacyFieldHint({ warnings, field }) {
+  const match = (warnings || []).find((w) => w.field === field);
+  if (!match) return null;
+  return (
+    <span className="legacy-field-hint">
+      Stored value &quot;{match.value}&quot; is not in current Settings — update this field or ask admin to adjust the catalogue.
+    </span>
+  );
+}
 
 export default function LeadDetail() {
   const { id } = useParams();
@@ -32,7 +52,13 @@ export default function LeadDetail() {
   const [convertClientId, setConvertClientId] = useState('');
   const [products, setProducts] = useState([]);
   const [contacts, setContacts] = useState([]);
+  const [openSections, setOpenSections] = useState({
+    'lead-section-capture': true,
+    'lead-section-qualify': true,
+  });
   const [capture, setCapture] = useState({
+    lead_source: '',
+    organization_type: '',
     customer_segment: '',
     industry: '',
     geo_location: '',
@@ -63,6 +89,8 @@ export default function LeadDetail() {
         setLead(row);
         setError(null);
         setCapture({
+          lead_source: row.lead_source || row.source || '',
+          organization_type: row.organization_type || row.customer_type || row.customer_segment || '',
           customer_segment: row.customer_segment || '',
           industry: row.industry || '',
           geo_location: row.geo_location || '',
@@ -104,6 +132,14 @@ export default function LeadDetail() {
   }, []);
 
   useEffect(load, [id]);
+
+  const jumpToSection = useCallback((sectionId) => {
+    if (!SECTION_IDS.includes(sectionId)) return;
+    setOpenSections((prev) => ({ ...prev, [sectionId]: true }));
+    window.requestAnimationFrame(() => {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, []);
 
   if (!lead) {
     return (
@@ -250,6 +286,12 @@ export default function LeadDetail() {
 
   const canConvert = !!lead.convert_eligible;
   const convertBlockedHint = `Conversion unlocks at Qualified stage or later. Current stage: ${lead.current_stage || 'Unknown'}.`;
+  const legacyWarnings = lead.legacy_picklist_warnings || [];
+
+  const sectionOpen = (id) => !!openSections[id];
+  const setSectionOpen = (id) => (next) => {
+    setOpenSections((prev) => ({ ...prev, [id]: typeof next === 'boolean' ? next : !prev[id] }));
+  };
 
   return (
     <div>
@@ -259,30 +301,21 @@ export default function LeadDetail() {
       </div>
       {message && <p className="success-text">{message}</p>}
       {error && <p className="error-text">{error}</p>}
-      {(lead.legacy_picklist_warnings?.length > 0) && (
-        <div className="card" style={{ marginBottom: 16, borderColor: 'var(--warning, #c90)' }}>
-          <strong>Legacy picklist values</strong>
-          <p style={{ margin: '8px 0 0' }}>
-            This lead has stored values that are not in the current Settings catalogues. They still display here; update the lead or adjust Settings to match.
-          </p>
-          <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
-            {lead.legacy_picklist_warnings.map((w) => (
-              <li key={`${w.field}-${w.value}`}>
-                <code>{String(w.field || 'field').replace(/_/g, ' ')}</code>: {w.value ?? '—'}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <LeadPipelineRibbon currentStage={lead.current_stage} converted={lead.status === 'converted'} />
+      <LeadPipelineRibbon
+        currentStage={lead.current_stage}
+        converted={lead.status === 'converted'}
+        onJumpToSection={jumpToSection}
+        onEmailClick={() => jumpToSection('lead-section-email')}
+        emailDisabled={!lead.email}
+      />
 
       <div className="lead-detail-sections">
         <AccordionSection
-          id="lead-section-stage"
-          title="1. Pipeline & capture"
-          subtitle="Move stage and save firmographics"
-          defaultOpen
+          id="lead-section-capture"
+          title="START: Pipeline & capture"
+          subtitle="Stage, lead source, organization type, firmographics"
+          open={sectionOpen('lead-section-capture')}
+          onOpenChange={setSectionOpen('lead-section-capture')}
           helpText={help.leadPipelineStage}
           helpTitle="Pipeline stage"
         >
@@ -295,11 +328,26 @@ export default function LeadDetail() {
             </select>
           </div>
           <p className="kpi-sub">Last status change: {lead.status_updated_at ? new Date(lead.status_updated_at).toLocaleString() : '—'}</p>
-          <p className="kpi-sub">Source: {lead.lead_source || lead.source || '—'} · Phone: {lead.phone || '—'} · Email: {lead.email || '—'}</p>
+          <p className="kpi-sub">Phone: {lead.phone || '—'} · Email: {lead.email || '—'}</p>
           {lead.customer && <p>Client: <Link to={`/customers/${lead.customer.id}`}>{lead.customer.client_id}</Link></p>}
           <form onSubmit={saveCapture} style={{ marginTop: 12 }}>
             <PicklistSelect
-              label="Customer segment"
+              label="Lead source (how they heard about us)"
+              value={capture.lead_source}
+              options={schema.picklists?.lead_source}
+              onChange={(v) => setCapture({ ...capture, lead_source: v })}
+            />
+            <LegacyFieldHint warnings={legacyWarnings} field="lead_source" />
+            <PicklistSelect
+              label="Organization type"
+              value={capture.organization_type}
+              options={schema.picklists?.organization_type}
+              onChange={(v) => setCapture({ ...capture, organization_type: v })}
+            />
+            <LegacyFieldHint warnings={legacyWarnings} field="organization_type" />
+            <LegacyFieldHint warnings={legacyWarnings} field="customer_segment" />
+            <PicklistSelect
+              label="Customer segment (optional size band)"
               value={capture.customer_segment}
               options={schema.picklists?.customer_segment}
               onChange={(v) => setCapture({ ...capture, customer_segment: v })}
@@ -328,8 +376,12 @@ export default function LeadDetail() {
 
         <AccordionSection
           id="lead-section-qualify"
-          title="2. Qualify & contacts"
-          subtitle="Score the opportunity and maintain contact roster"
+          title="ENGAGE: Qualify, contacts & follow-up"
+          subtitle="Score the opportunity, contacts, and iterative follow-up loop"
+          open={sectionOpen('lead-section-qualify')}
+          onOpenChange={setSectionOpen('lead-section-qualify')}
+          helpText={help.leadFollowUp}
+          helpTitle="Follow-up and engagements"
         >
           <form onSubmit={saveQualify} style={{ marginBottom: 16 }}>
             <PicklistSelect
@@ -395,16 +447,9 @@ export default function LeadDetail() {
               <button type="submit" className="small">Save contacts</button>
             </div>
           </form>
-        </AccordionSection>
 
-        <AccordionSection
-          id="lead-section-followup"
-          title="3. Follow-up loop"
-          subtitle="Log each touch, set next action, finish the task"
-          defaultOpen
-          helpText={help.leadFollowUp}
-          helpTitle="Follow-up and engagements"
-        >
+          <hr style={{ margin: '20px 0', border: 'none', borderTop: '1px solid var(--border)' }} />
+          <h4>Follow-up loop</h4>
           {lead.needs_qualify_review && (
             <p className="error-text">
               Qualify review needed: {lead.idle_touch_count} touches without progress outcome.
@@ -479,8 +524,10 @@ export default function LeadDetail() {
 
         <AccordionSection
           id="lead-section-appoint"
-          title="4. Appointments"
+          title="PAYOFF: Appointments"
           subtitle="Schedule and track demos or meetings"
+          open={sectionOpen('lead-section-appoint')}
+          onOpenChange={setSectionOpen('lead-section-appoint')}
         >
           <form onSubmit={scheduleAppointment}>
             <div className="form-row"><label>Title *</label>
@@ -510,8 +557,10 @@ export default function LeadDetail() {
 
         <AccordionSection
           id="lead-section-convert"
-          title="5. Convert to customer"
+          title="DEAL: Convert to customer"
           subtitle="Attach products and generate client ID"
+          open={sectionOpen('lead-section-convert')}
+          onOpenChange={setSectionOpen('lead-section-convert')}
         >
           {lead.status === 'converted' ? (
             <p className="success-text">Already converted.</p>
@@ -526,7 +575,7 @@ export default function LeadDetail() {
                   value={convertClientId}
                   onChange={(e) => setConvertClientId(e.target.value)}
                 />
-                <p className="kpi-sub">Format YYMMDD_C{n} (e.g. 261009_C101). Leave blank to auto-generate.</p>
+                <p className="kpi-sub">Format YYMMDD_C{'{n}'} (e.g. 261009_C101). Leave blank to auto-generate.</p>
               </div>
               <div className="form-row">
                 <label>Products / Services</label>
@@ -576,9 +625,21 @@ export default function LeadDetail() {
         </AccordionSection>
 
         <AccordionSection
+          id="lead-section-contract"
+          title="CHEERS: Contract sign-off"
+          subtitle="Documents, agreements, renewals"
+          open={sectionOpen('lead-section-contract')}
+          onOpenChange={setSectionOpen('lead-section-contract')}
+        >
+          <LeadContractPanel lead={lead} customerId={lead.customer?.id} />
+        </AccordionSection>
+
+        <AccordionSection
           id="lead-section-email"
-          title="6. Email (Microsoft 365)"
+          title="Email (Microsoft 365)"
           subtitle="Send from your linked mailbox"
+          open={sectionOpen('lead-section-email')}
+          onOpenChange={setSectionOpen('lead-section-email')}
         >
           <MicrosoftEmailPanel sendUrl={`/leads/${id}/email`} disabled={!lead.email} returnPath={`/leads/${id}`} />
         </AccordionSection>

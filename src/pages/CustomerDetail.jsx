@@ -55,6 +55,7 @@ export default function CustomerDetail() {
         phone: c.phone || '',
         address: c.address || '',
         status: normalizeCustomerStatus(c.status),
+        organization_type: c.organization_type || c.customer_type || '',
         customer_segment: c.customer_segment || '',
         industry: c.industry || '',
         geo_location: c.geo_location || '',
@@ -179,7 +180,13 @@ export default function CustomerDetail() {
               </select>
             </div>
             <PicklistSelect
-              label="Segment"
+              label="Organization type"
+              value={profileEdit.organization_type}
+              options={picklists.organization_type}
+              onChange={(v) => setProfileEdit({ ...profileEdit, organization_type: v })}
+            />
+            <PicklistSelect
+              label="Segment (optional)"
               value={profileEdit.customer_segment}
               options={picklists.customer_segment}
               onChange={(v) => setProfileEdit({ ...profileEdit, customer_segment: v })}

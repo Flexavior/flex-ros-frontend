@@ -223,11 +223,20 @@ a:hover { text-decoration: underline; }
   margin-bottom: 12px;
 }
 
-.accordion-heading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.accordion-header-bar {
   margin: 0 0 8px;
+}
+
+.accordion-trigger-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.accordion-help-inline {
+  display: inline-flex;
+  align-items: center;
 }
 
 .accordion-trigger {
@@ -268,9 +277,37 @@ a:hover { text-decoration: underline; }
   font-weight: 400;
 }
 
-.accordion-chevron {
-  font-size: 14px;
+.accordion-chevron-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
   color: var(--muted);
+  transition: background 0.15s ease, color 0.15s ease, transform 0.2s ease;
+}
+
+.accordion-trigger:hover .accordion-chevron-wrap,
+.accordion-trigger:focus-visible .accordion-chevron-wrap {
+  background: var(--surface-soft-hover);
+  color: var(--primary);
+}
+
+.accordion-chevron-wrap.is-open {
+  transform: rotate(180deg);
+  color: var(--primary);
+}
+
+.accordion-chevron-icon {
+  display: block;
+}
+
+.legacy-field-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--status-warning-text);
+  margin-top: 2px;
 }
 
 .accordion-panel {
@@ -350,9 +387,38 @@ h3 { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
-  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
   color: var(--muted);
   background: var(--surface-soft);
+}
+
+.pipeline-ribbon-email {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.pipeline-ribbon-email:hover:not(:disabled),
+.pipeline-ribbon-email:focus-visible {
+  background: var(--primary);
+  color: var(--white);
+  outline: 2px solid var(--primary-dark);
+  outline-offset: 2px;
+}
+
+.pipeline-ribbon-email:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .pipeline-ribbon-item.active {

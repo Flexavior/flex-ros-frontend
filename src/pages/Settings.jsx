@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import api from '../api/client.js';
 
 const ADMIN_PICKLIST_KEYS = [
+  'organization_type',
   'customer_segment',
   'industry',
   'geo_location',

@@ -33,6 +33,7 @@ export default function Leads() {
     phone: '',
     lead_source: '',
     current_stage: '',
+    organization_type: '',
     customer_segment: '',
     industry: '',
     geo_location: '',
@@ -114,7 +115,8 @@ export default function Leads() {
         phone: '',
         lead_source: schema.picklists?.lead_source?.[0] || '',
         current_stage: schema.picklists?.current_stage?.[0] || '',
-        customer_segment: '',
+        organization_type: '',
+    customer_segment: '',
         industry: '',
         geo_location: '',
         notes: '',
@@ -193,7 +195,13 @@ export default function Leads() {
               onChange={(v) => setForm({ ...form, current_stage: v })}
             />
             <PicklistSelect
-              label="Customer segment"
+              label="Organization type"
+              value={form.organization_type}
+              options={schema.picklists?.organization_type}
+              onChange={(v) => setForm({ ...form, organization_type: v })}
+            />
+            <PicklistSelect
+              label="Customer segment (optional)"
               value={form.customer_segment}
               options={schema.picklists?.customer_segment}
               onChange={(v) => setForm({ ...form, customer_segment: v })}
@@ -332,7 +340,7 @@ export default function Leads() {
                   <td><Link to={`/leads/${l.id}`}>{l.name}</Link></td>
                   <td>{l.company || '—'}</td>
                   <td>{l.lead_source || l.source || '—'}</td>
-                  <td>{l.customer_segment || '—'}</td>
+                  <td>{l.organization_type || l.customer_segment || '—'}</td>
                   <td>{l.industry || '—'}</td>
                   <td>{l.geo_location || '—'}</td>
                   <td><span className="badge pending">{l.current_stage || l.status || '—'}</span></td>

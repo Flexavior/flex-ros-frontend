@@ -1,34 +1,81 @@
 import React from 'react';
 
-/** Stage-native navigation (not a step wizard — same page, scroll/focus sections). */
-const STAGES = [
-  { key: 'capture', label: 'Capture', match: ['New'] },
-  { key: 'qualify', label: 'Qualify', match: ['Contacted', 'Qualified'] },
-  { key: 'appoint', label: 'Appoint', match: ['Demo / Meeting', 'Proposal', 'Proposal Sent', 'Negotiation'] },
-  { key: 'convert', label: 'Convert', match: ['Won'] },
-  { key: 'contract', label: 'Contract', match: [] },
+/**
+ * Pipeline chips — scroll/open matching accordion sections on Lead detail.
+ */
+export const PIPELINE_SECTIONS = [
+  { key: 'capture', chip: 'Capture', sectionId: 'lead-section-capture' },
+  { key: 'qualify', chip: 'Qualify', sectionId: 'lead-section-qualify' },
+  { key: 'appoint', chip: 'Appoint', sectionId: 'lead-section-appoint' },
+  { key: 'convert', chip: 'Convert', sectionId: 'lead-section-convert' },
+  { key: 'contract', chip: 'Contract', sectionId: 'lead-section-contract' },
 ];
 
-function activeStage(currentStage) {
+const STAGE_MATCH = [
+  { key: 'capture', match: ['New', 'Not Qualified'] },
+  { key: 'qualify', match: ['Contacted', 'Qualified'] },
+  { key: 'appoint', match: ['Demo / Meeting', 'Proposal', 'Proposal Sent', 'Negotiation'] },
+  { key: 'convert', match: ['Won'] },
+  { key: 'contract', match: [] },
+];
+
+function activeChipKey(currentStage, converted) {
+  if (converted) return 'contract';
   const stage = currentStage || 'New';
-  const found = STAGES.find((s) => s.match.includes(stage));
-  return found?.key || 'qualify';
+  const found = STAGE_MATCH.find((s) => s.match.includes(stage));
+  if (found) return found.key;
+  if (stage === 'Lost') return 'capture';
+  return 'qualify';
 }
 
-export default function LeadPipelineRibbon({ currentStage, converted }) {
-  const active = converted ? 'contract' : activeStage(currentStage);
+function EmailIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+      />
+      <path d="m4 8 8 5 8-5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export default function LeadPipelineRibbon({
+  currentStage,
+  converted,
+  onJumpToSection,
+  onEmailClick,
+  emailDisabled,
+}) {
+  const active = activeChipKey(currentStage, converted);
+
+  const jump = (sectionId) => {
+    if (onJumpToSection) onJumpToSection(sectionId);
+  };
 
   return (
-    <nav className="pipeline-ribbon" aria-label="Sales pipeline stage">
-      {STAGES.map((s) => (
-        <a
+    <nav className="pipeline-ribbon" aria-label="Sales pipeline">
+      {PIPELINE_SECTIONS.map((s) => (
+        <button
           key={s.key}
-          href={`#lead-section-${s.key}`}
+          type="button"
           className={`pipeline-ribbon-item${active === s.key ? ' active' : ''}${converted && s.key === 'convert' ? ' done' : ''}`}
+          onClick={() => jump(s.sectionId)}
         >
-          {s.label}
-        </a>
+          {s.chip}
+        </button>
       ))}
+      <button
+        type="button"
+        className="pipeline-ribbon-email"
+        aria-label="Open email section"
+        title={emailDisabled ? 'Add lead email to send' : 'Email this lead'}
+        disabled={emailDisabled}
+        onClick={() => (onEmailClick ? onEmailClick() : jump('lead-section-email'))}
+      >
+        <EmailIcon />
+      </button>
     </nav>
   );
 }
