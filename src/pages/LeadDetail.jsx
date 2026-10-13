@@ -9,7 +9,15 @@ import PicklistSelect from '../components/PicklistSelect.jsx';
 import { help } from '../content/helpText.js';
 import { normalizeLeadPayload } from '../utils/normalizeLead.js';
 import ActionToast from '../components/ActionToast.jsx';
+import LeadDetailActionRail from '../components/LeadDetailActionRail.jsx';
+import LeadEmailModal from '../components/LeadEmailModal.jsx';
 import { useActionFeedback } from '../hooks/useActionFeedback.js';
+
+function resolveLeadEmail(lead, contacts) {
+  if (lead?.email?.trim()) return lead.email.trim();
+  const primary = (contacts || []).find((c) => c.is_primary) || (contacts || []).find((c) => c.email?.trim());
+  return primary?.email?.trim() || '';
+}
 
 const SECTION_IDS = [
   'lead-section-capture',
@@ -73,6 +81,7 @@ export default function LeadDetail() {
     primary_contact_method: '',
     contact_role: '',
   });
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
 
   useLayoutEffect(() => {
     setError(null);
@@ -280,6 +289,16 @@ export default function LeadDetail() {
   const canConvert = !!lead.convert_eligible;
   const convertBlockedHint = `Conversion unlocks at Qualified stage or later. Current stage: ${lead.current_stage || 'Unknown'}.`;
   const legacyWarnings = lead.legacy_picklist_warnings || [];
+  const sendEmailTo = resolveLeadEmail(lead, contacts);
+  const canSendEmail = !!sendEmailTo;
+  const emailHint = canSendEmail
+    ? `Send to ${sendEmailTo}`
+    : 'Add an email on the lead or mark a primary contact with email.';
+
+  const openEmail = () => {
+    setEmailModalOpen(true);
+    jumpToSection('lead-section-email');
+  };
 
   const sectionOpen = (id) => !!openSections[id];
   const setSectionOpen = (id) => (next) => {
@@ -298,10 +317,27 @@ export default function LeadDetail() {
         currentStage={lead.current_stage}
         converted={lead.status === 'converted'}
         onJumpToSection={jumpToSection}
-        onEmailClick={() => jumpToSection('lead-section-email')}
-        emailDisabled={!lead.email}
+        onEmailClick={openEmail}
       />
 
+      <LeadEmailModal
+        open={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        leadId={id}
+        canSendEmail={canSendEmail}
+        emailHint={emailHint}
+      />
+
+      <div className="lead-detail-page">
+        <LeadDetailActionRail
+          lead={lead}
+          contacts={contacts}
+          onEmailClick={openEmail}
+          onJumpToSection={jumpToSection}
+          canSendEmail={canSendEmail}
+          emailHint={emailHint}
+        />
+        <div className="lead-detail-main">
       <div className="lead-detail-sections">
         <AccordionSection
           id="lead-section-capture"
@@ -313,18 +349,20 @@ export default function LeadDetail() {
           helpTitle="Pipeline stage"
         >
           <p><span className="badge pending">{lead.current_stage || lead.status}</span></p>
-          <div className="form-row">
+          <div className="form-row form-row-inline">
             <label>Move to</label>
-            <select value="" onChange={(e) => e.target.value && changeStatus(e.target.value)}>
+            <select className="form-control-inline" value="" onChange={(e) => e.target.value && changeStatus(e.target.value)}>
               <option value="">Select stage…</option>
               {(schema.picklists?.current_stage || []).map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <p className="kpi-sub">Last status change: {lead.status_updated_at ? new Date(lead.status_updated_at).toLocaleString() : '—'}</p>
-          <p className="kpi-sub">Phone: {lead.phone || '—'} · Email: {lead.email || '—'}</p>
+          <p className="kpi-sub">Phone: {lead.phone || '—'} · Email: {lead.email || sendEmailTo || '—'}</p>
           {lead.customer && <p>Client: <Link to={`/customers/${lead.customer.id}`}>{lead.customer.client_id}</Link></p>}
+          <div className="lead-form-stack">
           <form onSubmit={saveCapture} style={{ marginTop: 12 }}>
             <PicklistSelect
+              layout="inline"
               label="Lead source (how they heard about us)"
               value={capture.lead_source}
               options={schema.picklists?.lead_source}
@@ -332,6 +370,7 @@ export default function LeadDetail() {
             />
             <LegacyFieldHint warnings={legacyWarnings} field="lead_source" />
             <PicklistSelect
+              layout="inline"
               label="Organization type"
               value={capture.organization_type}
               options={schema.picklists?.organization_type}
@@ -340,24 +379,28 @@ export default function LeadDetail() {
             <LegacyFieldHint warnings={legacyWarnings} field="organization_type" />
             <LegacyFieldHint warnings={legacyWarnings} field="customer_segment" />
             <PicklistSelect
+              layout="inline"
               label="Customer segment (optional size band)"
               value={capture.customer_segment}
               options={schema.picklists?.customer_segment}
               onChange={(v) => setCapture({ ...capture, customer_segment: v })}
             />
             <PicklistSelect
+              layout="inline"
               label="Industry"
               value={capture.industry}
               options={schema.picklists?.industry}
               onChange={(v) => setCapture({ ...capture, industry: v })}
             />
             <PicklistSelect
+              layout="inline"
               label="Geo location"
               value={capture.geo_location}
               options={schema.picklists?.geo_location}
               onChange={(v) => setCapture({ ...capture, geo_location: v })}
             />
             <PicklistSelect
+              layout="inline"
               label="Product interest"
               value={capture.product_interest}
               options={schema.picklists?.product_interest}
@@ -365,6 +408,7 @@ export default function LeadDetail() {
             />
             <button type="submit" className="small" disabled={busy}>Save capture</button>
           </form>
+          </div>
         </AccordionSection>
 
         <AccordionSection
@@ -376,26 +420,30 @@ export default function LeadDetail() {
           helpText={help.leadFollowUp}
           helpTitle="Follow-up and engagements"
         >
-          <form onSubmit={saveQualify} style={{ marginBottom: 16 }}>
+          <form onSubmit={saveQualify} className="lead-form-stack" style={{ marginBottom: 16 }}>
             <PicklistSelect
+              layout="inline"
               label="Potential (yield)"
               value={qualify.interest_level}
               options={schema.picklists?.interest_level}
               onChange={(v) => setQualify({ ...qualify, interest_level: v })}
             />
             <PicklistSelect
+              layout="inline"
               label="Buying timeline"
               value={qualify.buying_timeline}
               options={schema.picklists?.buying_timeline}
               onChange={(v) => setQualify({ ...qualify, buying_timeline: v })}
             />
             <PicklistSelect
+              layout="inline"
               label="Primary contact method"
               value={qualify.primary_contact_method}
               options={schema.picklists?.contact_method}
               onChange={(v) => setQualify({ ...qualify, primary_contact_method: v })}
             />
             <PicklistSelect
+              layout="inline"
               label="Primary contact role"
               value={qualify.contact_role}
               options={schema.picklists?.contact_role}
@@ -449,20 +497,20 @@ export default function LeadDetail() {
             </p>
           )}
           <form onSubmit={logEngagement}>
-            <div className="form-row"><label>Channel</label>
-              <select value={engagement.channel} onChange={(e) => setEngagement({ ...engagement, channel: e.target.value })}>
+            <div className="form-row form-row-inline"><label>Channel</label>
+              <select className="form-control-inline" value={engagement.channel} onChange={(e) => setEngagement({ ...engagement, channel: e.target.value })}>
                 {(schema.picklists?.engagement_channel || []).map((c) => <option key={c} value={c}>{c}</option>)}
               </select></div>
-            <div className="form-row"><label>Contact Method</label>
-              <select value={engagement.contact_method} onChange={(e) => setEngagement({ ...engagement, contact_method: e.target.value })}>
+            <div className="form-row form-row-inline"><label>Contact Method</label>
+              <select className="form-control-inline" value={engagement.contact_method} onChange={(e) => setEngagement({ ...engagement, contact_method: e.target.value })}>
                 {(schema.picklists?.contact_method || []).map((c) => <option key={c} value={c}>{c}</option>)}
               </select></div>
             <div className="form-row"><label>Purpose</label>
               <input value={engagement.purpose} onChange={(e) => setEngagement({ ...engagement, purpose: e.target.value })} /></div>
             <div className="form-row"><label>Summary *</label>
               <textarea rows={2} value={engagement.summary} onChange={(e) => setEngagement({ ...engagement, summary: e.target.value })} required /></div>
-            <div className="form-row"><label>Activity Outcome</label>
-              <select value={engagement.activity_outcome} onChange={(e) => setEngagement({ ...engagement, activity_outcome: e.target.value })}>
+            <div className="form-row form-row-inline"><label>Activity Outcome</label>
+              <select className="form-control-inline" value={engagement.activity_outcome} onChange={(e) => setEngagement({ ...engagement, activity_outcome: e.target.value })}>
                 {(schema.picklists?.activity_outcome || []).map((c) => <option key={c} value={c}>{c}</option>)}
               </select></div>
             <div className="form-row"><label>Next action</label>
@@ -661,8 +709,14 @@ export default function LeadDetail() {
           open={sectionOpen('lead-section-email')}
           onOpenChange={setSectionOpen('lead-section-email')}
         >
-          <MicrosoftEmailPanel sendUrl={`/leads/${id}/email`} disabled={!lead.email} returnPath={`/leads/${id}`} />
+          <MicrosoftEmailPanel
+            sendUrl={`/leads/${id}/email`}
+            disabled={!canSendEmail}
+            returnPath={`/leads/${id}`}
+          />
         </AccordionSection>
+      </div>
+        </div>
       </div>
     </div>
   );

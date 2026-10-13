@@ -20,7 +20,7 @@ export const help = {
   ssoProvisioning:
     'Microsoft SSO creates users with the Staff role until Senior Management assigns Sales, Marketing, or Customer Service.',
   reverbInbox:
-    'Laravel Reverb pushes live inbox updates (new messages, sync) to the Inbox page only—not lead pipeline events. Email uses Microsoft Graph, not Reverb.',
+    'Inbox lists omnichannel threads (ConvyMes / Outlook mirror), not every Mail.Read folder. Lead email uses Microsoft 365 send from the lead page. Reverb refreshes inbox when webhooks arrive.',
   adminConsole:
     'Operational snapshot: users awaiting assignment, SSO toggles, and realtime (Reverb) status. Deep config lives under System Settings.',
 };

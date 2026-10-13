@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/client.js';
 
-export default function MicrosoftEmailPanel({ sendUrl, disabled, returnPath }) {
+export default function MicrosoftEmailPanel({ sendUrl, disabled, returnPath, onSent, compact = false }) {
   const [msStatus, setMsStatus] = useState(null);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -39,6 +39,7 @@ export default function MicrosoftEmailPanel({ sendUrl, disabled, returnPath }) {
       setMessage('Email sent from your Microsoft 365 mailbox.');
       setSubject('');
       setBody('');
+      onSent?.();
     } catch (err) {
       setError(err.response?.data?.message || 'Send failed.');
     } finally {
@@ -70,11 +71,14 @@ export default function MicrosoftEmailPanel({ sendUrl, disabled, returnPath }) {
     );
   }
 
+  const Wrapper = compact ? 'div' : 'div';
+  const wrapperClass = compact ? 'microsoft-email-panel-compact' : 'card';
+
   return (
-    <div className="card">
-      <h3>Email (Microsoft 365)</h3>
+    <Wrapper className={wrapperClass}>
+      {!compact && <h3>Email (Microsoft 365)</h3>}
       <p className="kpi-sub">Sending as {msStatus.mailbox_upn || 'connected mailbox'}</p>
-      {disabled && <p className="error-text">Add a contact email to enable send.</p>}
+      {disabled && <p className="error-text">Add lead or primary contact email to enable send.</p>}
       <form onSubmit={send}>
         <div className="form-row">
           <label>Subject</label>
@@ -88,6 +92,6 @@ export default function MicrosoftEmailPanel({ sendUrl, disabled, returnPath }) {
         {error && <p className="error-text">{error}</p>}
         <button type="submit" disabled={disabled || busy}>Send email</button>
       </form>
-    </div>
+    </Wrapper>
   );
 }

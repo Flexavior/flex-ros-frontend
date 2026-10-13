@@ -4,7 +4,7 @@ import HelpIcon from './HelpIcon.jsx';
 function Chevron({ open }) {
   return (
     <span className={`accordion-chevron-wrap${open ? ' is-open' : ''}`} aria-hidden>
-      <svg className="accordion-chevron-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+      <svg className="accordion-chevron-icon" width="24" height="24" viewBox="0 0 24 24" fill="none">
         <path d="M8 10l4 4 4-4" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </span>

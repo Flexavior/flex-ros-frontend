@@ -30,7 +30,7 @@ function activeChipKey(currentStage, converted) {
 
 function EmailIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"
         stroke="currentColor"
@@ -46,7 +46,6 @@ export default function LeadPipelineRibbon({
   converted,
   onJumpToSection,
   onEmailClick,
-  emailDisabled,
 }) {
   const active = activeChipKey(currentStage, converted);
 
@@ -69,12 +68,12 @@ export default function LeadPipelineRibbon({
       <button
         type="button"
         className="pipeline-ribbon-email"
-        aria-label="Open email section"
-        title={emailDisabled ? 'Add lead email to send' : 'Email this lead'}
-        disabled={emailDisabled}
+        aria-label="Send email to lead"
+        title={emailDisabled ? 'Add lead or primary contact email' : 'Send email (Microsoft 365)'}
         onClick={() => (onEmailClick ? onEmailClick() : jump('lead-section-email'))}
       >
         <EmailIcon />
+        <span className="pipeline-ribbon-email-label">Email</span>
       </button>
     </nav>
   );

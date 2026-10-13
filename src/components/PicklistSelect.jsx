@@ -20,14 +20,18 @@ export default function PicklistSelect({
   required = false,
   id,
   preserveUnknownValue = true,
+  layout = 'stack',
 }) {
   const selectId = id || `picklist-${label?.toLowerCase().replace(/\s+/g, '-')}`;
   const optionList = preserveUnknownValue ? withLegacyOption(options, value) : options;
 
+  const rowClass = layout === 'inline' ? 'form-row form-row-inline' : 'form-row';
+
   return (
-    <div className="form-row">
+    <div className={rowClass}>
       {label && <label htmlFor={selectId}>{label}{required ? ' *' : ''}</label>}
       <select
+        className={layout === 'inline' ? 'form-control-inline' : undefined}
         id={selectId}
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
