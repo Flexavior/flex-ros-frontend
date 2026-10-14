@@ -106,6 +106,11 @@ export default function Settings() {
       : [],
   });
 
+  const ssoLoginPayload = () => ({
+    'auth.sso.microsoft_enabled': Boolean(general['auth.sso.microsoft_enabled']),
+    'auth.sso.google_enabled': Boolean(general['auth.sso.google_enabled']),
+  });
+
   const loadPicklistsOnly = () => {
     api.get('/settings/lead-picklists').then((res) => setPicklists(res.data || {})).catch(() => {});
   };
@@ -113,7 +118,10 @@ export default function Settings() {
   const saveGeneralSection = async () => {
     try {
       const audit = await runAction(async () => {
-        const res = await api.put('/settings/general', generalThresholdPayload());
+        const res = await api.put('/settings/general', {
+          ...generalThresholdPayload(),
+          ...ssoLoginPayload(),
+        });
         setGeneral((prev) => mergeGeneralFromApi(prev, res.data));
         return res.data?.audit;
       }, { successMessage: 'General settings saved.' });
@@ -262,6 +270,7 @@ export default function Settings() {
         const generalRes = await api.put('/settings/general', {
           ...generalThresholdPayload(),
           ...inboxRolesPayload(),
+          ...ssoLoginPayload(),
         });
         setGeneral((prev) => mergeGeneralFromApi(prev, generalRes.data));
         const pickPayload = {};
@@ -376,6 +385,36 @@ export default function Settings() {
                 },
               })}
             />
+          </div>
+          <div className="form-row settings-sso-toggles" style={{ gridColumn: '1 / -1' }}>
+            <label>Login page — SSO providers</label>
+            <p className="kpi-sub" style={{ margin: '0 0 8px' }}>
+              Turn Microsoft or Google sign-in on or off for the public login page. Changes apply immediately (no redeploy).
+            </p>
+            <div className="settings-sso-toggle-list">
+              {[
+                { key: 'auth.sso.microsoft_enabled', label: 'Microsoft sign-in' },
+                { key: 'auth.sso.google_enabled', label: 'Google sign-in' },
+              ].map(({ key, label }) => {
+                const on = Boolean(general[key]);
+                return (
+                  <label key={key} className="settings-toggle-row">
+                    <span className="settings-toggle-label">{label}</span>
+                    <span className="settings-toggle-switch">
+                      <input
+                        type="checkbox"
+                        role="switch"
+                        aria-checked={on}
+                        checked={on}
+                        onChange={(e) => setGeneral({ ...general, [key]: e.target.checked })}
+                      />
+                      <span className="settings-toggle-track" aria-hidden />
+                    </span>
+                    <span className="settings-toggle-state">{on ? 'On' : 'Off'}</span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
           <div className="form-row" style={{ gridColumn: '1 / -1' }}>
             <label>Qualify progress outcomes (one per line; must match activity outcomes)</label>

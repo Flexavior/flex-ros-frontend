@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../api/client.js';
 import { resolvePostLoginPath } from '../auth/crmAccess.js';
+import { GoogleLogo, MicrosoftLogo } from '../components/SsoProviderIcons.jsx';
 
 function safeReturnUrl(raw) {
   if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return '/';
@@ -92,21 +93,35 @@ export default function Login() {
               {ssoConfig.microsoft && (
                 <button
                   type="button"
-                  className="secondary"
+                  className="secondary login-sso-btn"
                   disabled={!!ssoBusy}
                   onClick={() => startSso('microsoft')}
                 >
-                  {ssoBusy === 'microsoft' ? 'Connecting…' : 'Microsoft'}
+                  {ssoBusy === 'microsoft' ? (
+                    'Connecting…'
+                  ) : (
+                    <>
+                      <MicrosoftLogo size={18} />
+                      <span>Microsoft</span>
+                    </>
+                  )}
                 </button>
               )}
               {ssoConfig.google && (
                 <button
                   type="button"
-                  className="secondary"
+                  className="secondary login-sso-btn"
                   disabled={!!ssoBusy}
                   onClick={() => startSso('google')}
                 >
-                  {ssoBusy === 'google' ? 'Connecting…' : 'Google'}
+                  {ssoBusy === 'google' ? (
+                    'Connecting…'
+                  ) : (
+                    <>
+                      <GoogleLogo size={18} />
+                      <span>Google</span>
+                    </>
+                  )}
                 </button>
               )}
             </div>
