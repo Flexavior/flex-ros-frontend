@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
@@ -9,8 +9,14 @@ import {
 } from '../auth/crmAccess.js';
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const onFocus = () => { refreshUser?.(); };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [refreshUser]);
   const isAdmin = isAdminUser(user);
   const showCrm = canUseCrmModules(user);
   const showSalesCrm = canUseSalesCrmModules(user);

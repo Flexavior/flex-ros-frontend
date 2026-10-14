@@ -1,6 +1,58 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../api/client.js';
+import SettingsSectionSaveButton from '../components/SettingsSectionSaveButton.jsx';
+import SettingsResultModal from '../components/SettingsResultModal.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { useActionFeedback } from '../hooks/useActionFeedback.js';
+
+function formatAuditLine(audit) {
+  if (!audit?.events?.length) return null;
+  const ts = audit.logged_at ? ` @ ${audit.logged_at}` : '';
+  return `settings.updated keys=[${audit.events.join(', ')}]${ts}`;
+}
+
+function logSettingsAudit(audit) {
+  const line = formatAuditLine(audit);
+  if (line) {
+    // eslint-disable-next-line no-console
+    console.info('[MSS-CRM settings]', line);
+  }
+  return line;
+}
+
+function mergeGeneralFromApi(prev, data) {
+  if (!data || typeof data !== 'object') return prev;
+  const qualify = data['crm.qualify'] || {};
+  return {
+    ...prev,
+    ...data,
+    'crm.qualify': {
+      ...(prev['crm.qualify'] || {}),
+      ...qualify,
+      progress_outcomes_text: qualify.progress_outcomes?.join('\n')
+        ?? prev['crm.qualify']?.progress_outcomes_text
+        ?? (prev['crm.qualify']?.progress_outcomes || []).join('\n'),
+    },
+  };
+}
+
+function apiErrorMessage(err, fallback) {
+  return err?.response?.data?.message
+    || (err?.response?.data?.errors && Object.values(err.response.data.errors).flat().join(' '))
+    || fallback;
+}
+
+function mergeAuditEvents(...audits) {
+  const events = [];
+  let loggedAt = null;
+  for (const a of audits) {
+    if (a?.events?.length) events.push(...a.events);
+    if (a?.logged_at) loggedAt = a.logged_at;
+  }
+  if (!events.length) return null;
+  return { events, logged_at: loggedAt || new Date().toISOString() };
+}
 
 const ADMIN_PICKLIST_KEYS = [
   'organization_type',
@@ -15,18 +67,115 @@ const ADMIN_PICKLIST_KEYS = [
 ];
 
 export default function Settings() {
+  const { refreshUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [checklists, setChecklists] = useState({});
   const [stages, setStages] = useState([]);
   const [general, setGeneral] = useState({});
   const [picklists, setPicklists] = useState({});
-  const [message, setMessage] = useState(null);
-  const [error, setError] = useState(null);
+  const [resultModal, setResultModal] = useState({ open: false, type: 'success', message: '', auditLine: null });
+  const { busy, runAction } = useActionFeedback();
+
+  const showResult = useCallback((type, message, audit) => {
+    const auditLine = logSettingsAudit(audit);
+    setResultModal({ open: true, type, message, auditLine });
+  }, []);
+
+  const qualifyProgressOutcomes = () => String(general['crm.qualify']?.progress_outcomes_text || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const generalThresholdPayload = () => ({
+    'crm.stale_task_days': Number(general['crm.stale_task_days'] ?? 5),
+    'crm.qualify': {
+      max_idle_touches: Number(general['crm.qualify']?.max_idle_touches || 4),
+      progress_outcomes: qualifyProgressOutcomes().length
+        ? qualifyProgressOutcomes()
+        : (general['crm.qualify']?.progress_outcomes || ['Demo booked', 'Proposal sent', 'Won']),
+    },
+  });
+
+  const inboxRolesPayload = () => ({
+    'crm.inbox_enabled_roles': Array.isArray(general['crm.inbox_enabled_roles'])
+      ? general['crm.inbox_enabled_roles']
+      : [],
+  });
+
+  const loadPicklistsOnly = () => {
+    api.get('/settings/lead-picklists').then((res) => setPicklists(res.data || {})).catch(() => {});
+  };
+
+  const saveGeneralSection = async () => {
+    try {
+      const audit = await runAction(async () => {
+        const res = await api.put('/settings/general', generalThresholdPayload());
+        setGeneral((prev) => mergeGeneralFromApi(prev, res.data));
+        return res.data?.audit;
+      }, { successMessage: 'General settings saved.' });
+      showResult('success', 'General settings saved.', audit);
+    } catch (err) {
+      showResult('error', apiErrorMessage(err, 'General settings could not be saved.'), null);
+    }
+  };
+
+  const saveInboxSection = async () => {
+    try {
+      const audit = await runAction(async () => {
+        const res = await api.put('/settings/general', inboxRolesPayload());
+        setGeneral((prev) => mergeGeneralFromApi(prev, res.data));
+        await refreshUser?.();
+        return res.data?.audit;
+      }, { successMessage: 'Inbox access saved.' });
+      showResult(
+        'success',
+        'Inbox access saved. CRM users refresh the app or refocus this browser tab to update the Inbox menu.',
+        audit,
+      );
+    } catch (err) {
+      showResult('error', apiErrorMessage(err, 'Inbox access could not be saved.'), null);
+    }
+  };
+
+  const savePicklistsSection = async () => {
+    try {
+      const audit = await runAction(async () => {
+        const pickPayload = {};
+        for (const key of ADMIN_PICKLIST_KEYS) {
+          const text = picklists[key];
+          if (typeof text === 'string') {
+            pickPayload[key] = text.split('\n').map((l) => l.trim()).filter(Boolean);
+          } else if (Array.isArray(text)) {
+            pickPayload[key] = text;
+          }
+        }
+        const res = await api.put('/settings/lead-picklists', pickPayload);
+        loadPicklistsOnly();
+        return res.data?.audit;
+      }, { successMessage: 'Lead picklists saved.' });
+      showResult('success', 'Lead picklists saved.', audit);
+    } catch (err) {
+      showResult('error', apiErrorMessage(err, 'Lead picklists could not be saved.'), null);
+    }
+  };
+
+  const saveChecklistStage = (stageCode, stageName) => async () => {
+    try {
+      const audit = await runAction(async () => {
+        const items = (checklists[stageCode] || []).filter((i) => i.title && i.title.trim());
+        const res = await api.put('/settings/checklists', { [stageCode]: items });
+        return res.data?.audit;
+      }, { successMessage: `${stageName} checklist saved.` });
+      showResult('success', `${stageName} checklist saved.`, audit);
+    } catch (err) {
+      showResult('error', apiErrorMessage(err, 'Checklist could not be saved.'), null);
+    }
+  };
 
   const load = () => {
     api.get('/stages').then((res) => setStages(res.data)).catch(() => {});
     api.get('/settings/checklists').then((res) => setChecklists(res.data)).catch(() => {});
-    api.get('/settings/general').then((res) => setGeneral(res.data)).catch(() => {});
+    api.get('/settings/general').then((res) => setGeneral((prev) => mergeGeneralFromApi(prev, res.data))).catch(() => {});
     api.get('/settings/lead-picklists').then((res) => setPicklists(res.data || {})).catch(() => {});
   };
 
@@ -35,16 +184,16 @@ export default function Settings() {
   useEffect(() => {
     const ms = searchParams.get('microsoft');
     if (ms === 'connected') {
-      setMessage('Microsoft 365 connected successfully.');
+      showResult('success', 'Microsoft 365 connected successfully.', null);
       searchParams.delete('microsoft');
       setSearchParams(searchParams, { replace: true });
     } else if (ms === 'error') {
-      setError(searchParams.get('msg') || 'Microsoft connection failed.');
+      showResult('error', searchParams.get('msg') || 'Microsoft connection failed.', null);
       searchParams.delete('microsoft');
       searchParams.delete('msg');
       setSearchParams(searchParams, { replace: true });
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, showResult]);
 
   const addItem = (stageCode) => {
     setChecklists({
@@ -66,47 +215,40 @@ export default function Settings() {
   };
 
   const saveAll = async () => {
-    setMessage(null);
-    setError(null);
     try {
-      // Drop empty rows, send only stages that have at least one item
-      const payload = {};
-      for (const [code, items] of Object.entries(checklists)) {
-        const clean = items.filter((i) => i.title && i.title.trim());
-        if (clean.length) payload[code] = clean;
-      }
-      await api.put('/settings/checklists', payload);
-      const qualifyProgressOutcomes = String(general['crm.qualify']?.progress_outcomes_text || '')
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean);
-      const generalPayload = {
-        'crm.stale_task_days': Number(general['crm.stale_task_days'] ?? 5),
-        'crm.qualify': {
-          max_idle_touches: Number(general['crm.qualify']?.max_idle_touches || 4),
-          progress_outcomes: qualifyProgressOutcomes.length
-            ? qualifyProgressOutcomes
-            : (general['crm.qualify']?.progress_outcomes || ['Demo booked', 'Proposal sent', 'Won']),
-        },
-      };
-      if (Array.isArray(general['crm.inbox_enabled_roles'])) {
-        generalPayload['crm.inbox_enabled_roles'] = general['crm.inbox_enabled_roles'];
-      }
-      await api.put('/settings/general', generalPayload);
-      const pickPayload = {};
-      for (const key of ADMIN_PICKLIST_KEYS) {
-        const text = picklists[key];
-        if (typeof text === 'string') {
-          pickPayload[key] = text.split('\n').map((l) => l.trim()).filter(Boolean);
-        } else if (Array.isArray(text)) {
-          pickPayload[key] = text;
+      const audit = await runAction(async () => {
+        const payload = {};
+        for (const [code, items] of Object.entries(checklists)) {
+          const clean = items.filter((i) => i.title && i.title.trim());
+          if (clean.length) payload[code] = clean;
         }
-      }
-      await api.put('/settings/lead-picklists', pickPayload);
-      setMessage('Settings saved (checklists, general, lead picklists).');
-      load();
+        const checklistRes = await api.put('/settings/checklists', payload);
+        const generalRes = await api.put('/settings/general', {
+          ...generalThresholdPayload(),
+          ...inboxRolesPayload(),
+        });
+        setGeneral((prev) => mergeGeneralFromApi(prev, generalRes.data));
+        const pickPayload = {};
+        for (const key of ADMIN_PICKLIST_KEYS) {
+          const text = picklists[key];
+          if (typeof text === 'string') {
+            pickPayload[key] = text.split('\n').map((l) => l.trim()).filter(Boolean);
+          } else if (Array.isArray(text)) {
+            pickPayload[key] = text;
+          }
+        }
+        const picklistRes = await api.put('/settings/lead-picklists', pickPayload);
+        await refreshUser?.();
+        load();
+        return mergeAuditEvents(
+          checklistRes.data?.audit,
+          generalRes.data?.audit,
+          picklistRes.data?.audit,
+        );
+      }, { successMessage: 'All settings saved.' });
+      showResult('success', 'All settings saved (checklists, general, inbox access, lead picklists).', audit);
     } catch (err) {
-      setError(err.response?.data?.message || 'Save failed.');
+      showResult('error', apiErrorMessage(err, 'Save all settings failed.'), null);
     }
   };
 
@@ -121,16 +263,15 @@ export default function Settings() {
   };
 
   const reloadPicklistKey = async (key) => {
-    setError(null);
     try {
       const res = await api.get('/settings/lead-picklists');
       const next = res.data?.[key];
       if (Array.isArray(next)) {
         setPicklists((prev) => ({ ...prev, [key]: next }));
-        setMessage(`Reloaded "${key}" from server.`);
+        showResult('success', `Reloaded "${key}" from server.`, null);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Reload failed.');
+      showResult('error', apiErrorMessage(err, 'Reload failed.'), null);
     }
   };
 
@@ -138,7 +279,6 @@ export default function Settings() {
     if (!window.confirm(`Restore "${key}" to product defaults? This overwrites saved options for this list only.`)) {
       return;
     }
-    setError(null);
     try {
       const res = await api.post(`/settings/lead-picklists/restore/${key}`);
       if (res.data?.picklists) {
@@ -146,20 +286,37 @@ export default function Settings() {
       } else if (Array.isArray(res.data?.options)) {
         setPicklists((prev) => ({ ...prev, [key]: res.data.options }));
       }
-      setMessage(`Restored defaults for "${key}".`);
+      showResult('success', `Restored defaults for "${key}".`, res.data?.audit);
     } catch (err) {
-      setError(err.response?.data?.message || err.response?.data?.errors?.[key]?.[0] || 'Restore failed.');
+      showResult(
+        'error',
+        err.response?.data?.errors?.[key]?.[0] || apiErrorMessage(err, 'Restore failed.'),
+        null,
+      );
     }
   };
 
   return (
     <div>
       <h1 className="page-title">System Settings — Dynamic Checklists</h1>
-      {message && <p className="success-text">{message}</p>}
-      {error && <p className="error-text">{error}</p>}
+
+      <SettingsResultModal
+        open={resultModal.open}
+        type={resultModal.type}
+        message={resultModal.message}
+        auditLine={resultModal.auditLine}
+        onClose={() => setResultModal((m) => ({ ...m, open: false }))}
+      />
 
       <div className="card">
-        <h3>General</h3>
+        <div className="settings-card-header">
+          <h3>General</h3>
+          <SettingsSectionSaveButton
+            label="Save General settings"
+            disabled={busy}
+            onClick={saveGeneralSection}
+          />
+        </div>
         <div className="grid cols-2" style={{ maxWidth: 480 }}>
           <div className="form-row">
             <label>Stale task threshold (days, dashboard "no change" rule)</label>
@@ -202,36 +359,53 @@ export default function Settings() {
       </div>
 
       <div className="card">
-        <h3>Inbox access (by role)</h3>
+        <div className="settings-card-header">
+          <h3>Inbox access (by role)</h3>
+          <SettingsSectionSaveButton
+            label="Save Inbox access"
+            disabled={busy}
+            onClick={saveInboxSection}
+          />
+        </div>
         <p className="kpi-sub">
           Controls who sees the Inbox menu and may use inbox APIs. Only roles defined as inbox-capable in the product can be enabled.
-          Users must sign out and back in (or refresh session) after you save.
+          After saving, CRM users refocus this tab or reload to refresh the Inbox menu (session is updated automatically).
         </p>
-        <div className="form-row" style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 420 }}>
+        <ul className="settings-role-checklist">
           {(general['crm.inbox_role_catalog'] || []).map(({ code, name }) => {
             const enabled = (general['crm.inbox_enabled_roles'] || []).includes(code);
+            const toggle = () => {
+              const current = general['crm.inbox_enabled_roles'] || [];
+              const next = enabled
+                ? current.filter((c) => c !== code)
+                : [...new Set([...current, code])];
+              setGeneral({ ...general, 'crm.inbox_enabled_roles': next });
+            };
             return (
-              <label key={code} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={enabled}
-                  onChange={(e) => {
-                    const current = general['crm.inbox_enabled_roles'] || [];
-                    const next = e.target.checked
-                      ? [...new Set([...current, code])]
-                      : current.filter((c) => c !== code);
-                    setGeneral({ ...general, 'crm.inbox_enabled_roles': next });
-                  }}
-                />
-                {name || code}
-              </label>
+              <li key={code}>
+                <label className="settings-role-row">
+                  <input
+                    type="checkbox"
+                    checked={enabled}
+                    onChange={toggle}
+                  />
+                  <span className="settings-role-label">{name || code}</span>
+                </label>
+              </li>
             );
           })}
-        </div>
+        </ul>
       </div>
 
       <div className="card">
-        <h3>Lead picklists (settings-backed)</h3>
+        <div className="settings-card-header">
+          <h3>Lead picklists (settings-backed)</h3>
+          <SettingsSectionSaveButton
+            label="Save lead picklists"
+            disabled={busy}
+            onClick={savePicklistsSection}
+          />
+        </div>
         <p className="kpi-sub">
           One option per line. Stored in DB setting <code>crm.lead_picklists</code>.
           Segment = org size; Industry = sector name; Geo = region.
@@ -258,9 +432,16 @@ export default function Settings() {
 
       {stages.map((stage) => (
         <div className="card" key={stage.id}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ margin: 0 }}>{stage.name} <span className="kpi-sub">({stage.code})</span></h3>
-            <button className="small" onClick={() => addItem(stage.code)}>+ Add item</button>
+          <div className="settings-card-header">
+            <h3>{stage.name} <span className="kpi-sub">({stage.code})</span></h3>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <SettingsSectionSaveButton
+                label={`Save ${stage.name} checklist`}
+                disabled={busy}
+                onClick={() => saveChecklistStage(stage.code, stage.name)}
+              />
+              <button type="button" className="small" onClick={() => addItem(stage.code)}>+ Add item</button>
+            </span>
           </div>
           {(checklists[stage.code] || []).map((item, idx) => (
             <div className="checklist-item" key={idx}>
@@ -287,7 +468,7 @@ export default function Settings() {
         </div>
       ))}
 
-      <button onClick={saveAll}>Save All Settings</button>
+      <button type="button" disabled={busy} onClick={saveAll}>Save All Settings</button>
     </div>
   );
 }

@@ -68,8 +68,23 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const refreshUser = async () => {
+    const token = localStorage.getItem('mss_token');
+    if (!token) return null;
+    try {
+      const res = await api.get('/auth/me');
+      if (isValidSessionUser(res.data)) {
+        setUser(res.data);
+        return res.data;
+      }
+    } catch (e) {
+      /* keep existing session on transient errors */
+    }
+    return null;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, setUser, login, logout, exchangeSsoCode, loading }}>
+    <AuthContext.Provider value={{ user, setUser, login, logout, exchangeSsoCode, refreshUser, loading }}>
       {children}
     </AuthContext.Provider>
   );
