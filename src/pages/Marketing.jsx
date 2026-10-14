@@ -1,6 +1,37 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import HelpModal from '../components/HelpModal.jsx';
+
+function slugCode(name) {
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '')
+    .slice(0, 50);
+}
+
+function ChannelSelect({ channels, value, onChange, required }) {
+  const direct = channels.filter((c) => c.type === 'offline');
+  const digital = channels.filter((c) => c.type !== 'offline');
+
+  return (
+    <select value={value} onChange={onChange} required={required}>
+      <option value="">—</option>
+      {direct.length > 0 && (
+        <optgroup label="Direct / offline">
+          {direct.map((ch) => <option key={ch.id} value={ch.id}>{ch.name}</option>)}
+        </optgroup>
+      )}
+      {digital.length > 0 && (
+        <optgroup label="Digital / online">
+          {digital.map((ch) => <option key={ch.id} value={ch.id}>{ch.name}</option>)}
+        </optgroup>
+      )}
+    </select>
+  );
+}
 
 export default function Marketing() {
   const { user } = useAuth();
@@ -12,6 +43,9 @@ export default function Marketing() {
   const [postForm, setPostForm] = useState({ campaign_id: '', title: '', scheduled_at: '' });
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
+  const [channelModalOpen, setChannelModalOpen] = useState(false);
+  const [newChannel, setNewChannel] = useState({ name: '', code: '', type: 'social' });
+  const [channelBusy, setChannelBusy] = useState(false);
 
   const canApprove = ['ceo', 'senior_management', 'supervisor'].includes(user?.role?.code);
 
@@ -73,6 +107,28 @@ export default function Marketing() {
     load();
   };
 
+  const submitNewChannel = async (e) => {
+    e.preventDefault();
+    setChannelBusy(true);
+    setError(null);
+    try {
+      const code = newChannel.code.trim() || slugCode(newChannel.name);
+      await api.post('/marketing/channels', {
+        name: newChannel.name.trim(),
+        code,
+        type: newChannel.type,
+      });
+      setNewChannel({ name: '', code: '', type: 'social' });
+      setChannelModalOpen(false);
+      setMessage('Channel registered.');
+      load();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not create channel.');
+    } finally {
+      setChannelBusy(false);
+    }
+  };
+
   return (
     <div>
       <h1 className="page-title">Digital Marketing Channels</h1>
@@ -85,10 +141,16 @@ export default function Marketing() {
           <div className="form-row"><label>Name *</label>
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
           <div className="form-row"><label>Channel *</label>
-            <select value={form.channel_id} onChange={(e) => setForm({ ...form, channel_id: e.target.value })} required>
-              <option value="">—</option>
-              {channels.map((ch) => <option key={ch.id} value={ch.id}>{ch.name}</option>)}
-            </select></div>
+            <ChannelSelect
+              channels={channels}
+              value={form.channel_id}
+              onChange={(e) => setForm({ ...form, channel_id: e.target.value })}
+              required
+            />
+            {!channels.length && (
+              <p className="kpi-sub" style={{ marginTop: 4 }}>Add a channel below before creating a campaign.</p>
+            )}
+          </div>
           <div className="form-row"><label>Product / Service</label>
             <select value={form.product_service_id} onChange={(e) => setForm({ ...form, product_service_id: e.target.value })}>
               <option value="">—</option>
@@ -163,9 +225,62 @@ export default function Marketing() {
       </div>
 
       <div className="card">
-        <h3>Channels</h3>
-        <p className="kpi-sub">{channels.map((ch) => ch.name).join(' · ') || 'No channels registered.'}</p>
+        <div className="settings-card-header">
+          <h3>Channels</h3>
+          <button type="button" className="small primary" onClick={() => setChannelModalOpen(true)}>+ New Channel</button>
+        </div>
+        {channels.length ? (
+          <table>
+            <thead><tr><th>Name</th><th>Code</th><th>Type</th></tr></thead>
+            <tbody>
+              {channels.map((ch) => (
+                <tr key={ch.id}>
+                  <td>{ch.name}</td>
+                  <td>{ch.code}</td>
+                  <td>{ch.type}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="kpi-sub">No channels registered.</p>
+        )}
       </div>
+
+      <HelpModal open={channelModalOpen} title="New marketing channel" onClose={() => setChannelModalOpen(false)}>
+        <form onSubmit={submitNewChannel}>
+          <div className="form-row">
+            <label>Name *</label>
+            <input
+              value={newChannel.name}
+              onChange={(e) => setNewChannel({ ...newChannel, name: e.target.value, code: slugCode(e.target.value) })}
+              required
+            />
+          </div>
+          <div className="form-row">
+            <label>Code *</label>
+            <input
+              value={newChannel.code}
+              onChange={(e) => setNewChannel({ ...newChannel, code: e.target.value })}
+              required
+            />
+          </div>
+          <div className="form-row">
+            <label>Type *</label>
+            <select value={newChannel.type} onChange={(e) => setNewChannel({ ...newChannel, type: e.target.value })} required>
+              <option value="offline">Direct / offline (Event, exhibition…)</option>
+              <option value="social">Social</option>
+              <option value="messaging">Messaging / phone</option>
+              <option value="email">Email</option>
+              <option value="search">Search</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <p style={{ marginTop: 16 }}>
+            <button type="submit" disabled={channelBusy}>{channelBusy ? 'Saving…' : 'Create channel'}</button>
+          </p>
+        </form>
+      </HelpModal>
     </div>
   );
 }

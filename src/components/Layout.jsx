@@ -7,6 +7,7 @@ import {
   canAccessInbox,
   isAdminUser,
 } from '../auth/crmAccess.js';
+import WelcomeModal from './WelcomeModal.jsx';
 
 export default function Layout() {
   const { user, logout, refreshUser } = useAuth();
@@ -58,6 +59,7 @@ export default function Layout() {
           <button className="secondary" onClick={handleLogout}>Logout</button>
         </header>
         <main className="content">
+          <WelcomeModal user={user} />
           <Outlet />
         </main>
       </div>

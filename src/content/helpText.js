@@ -23,4 +23,8 @@ export const help = {
     'Inbox lists omnichannel threads (ConvyMes / Outlook mirror), not every Mail.Read folder. Lead email uses Microsoft 365 send from the lead page. Reverb refreshes inbox when webhooks arrive.',
   adminConsole:
     'Operational snapshot: users awaiting assignment, SSO toggles, and realtime (Reverb) status. Deep config lives under System Settings.',
+  inboxAccessSettings:
+    'Controls who sees the Inbox menu and may use inbox APIs. Only roles defined as inbox-capable in the product can be enabled. After saving, CRM users refocus this tab or reload to refresh the Inbox menu (session is updated automatically).',
+  productsNameSearch:
+    'Enter up to four words separated by spaces. Every word must appear in the product or service name.',
 };

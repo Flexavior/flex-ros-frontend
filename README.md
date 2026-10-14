@@ -234,3 +234,11 @@ If SPA and API are on **different origins** without a proxy, configure Laravel C
 | `/settings` | Settings (admin) |
 
 Defined in [`src/App.jsx`](src/App.jsx).
+
+### Contributing  
+Contributions, issues, and feature requests are welcome!
+
+### License  
+This project is licensed under the MIT License. 
+
+"# Flexavior-ROS-FE"

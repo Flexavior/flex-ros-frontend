@@ -41,10 +41,11 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  const beginSession = (token, me) => {
+  const beginSession = (token, me, welcomeKind) => {
     localStorage.setItem('mss_token', token);
-    setUser(me);
-    return me;
+    const merged = welcomeKind ? { ...me, welcome_kind: welcomeKind } : me;
+    setUser(merged);
+    return merged;
   };
 
   const login = async (email, password) => {
@@ -52,12 +53,12 @@ export function AuthProvider({ children }) {
     if (!res.data?.token || !isValidSessionUser(res.data.user)) {
       throw new Error('Login response was invalid. Check API URL (VITE_API_BASE_URL) and server status.');
     }
-    return beginSession(res.data.token, res.data.user);
+    return beginSession(res.data.token, res.data.user, res.data.user.welcome_kind);
   };
 
   const exchangeSsoCode = async (code) => {
     const res = await api.post('/auth/sso/exchange', { code });
-    return beginSession(res.data.token, res.data.user);
+    return beginSession(res.data.token, res.data.user, res.data.user.welcome_kind);
   };
 
   const logout = async () => {

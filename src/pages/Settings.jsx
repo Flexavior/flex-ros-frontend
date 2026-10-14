@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import api from '../api/client.js';
 import SettingsSectionSaveButton from '../components/SettingsSectionSaveButton.jsx';
 import SettingsResultModal from '../components/SettingsResultModal.jsx';
+import HelpIcon from '../components/HelpIcon.jsx';
+import { help } from '../content/helpText.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useActionFeedback } from '../hooks/useActionFeedback.js';
 
@@ -73,6 +75,8 @@ export default function Settings() {
   const [stages, setStages] = useState([]);
   const [general, setGeneral] = useState({});
   const [picklists, setPicklists] = useState({});
+  const [sysNotifications, setSysNotifications] = useState([]);
+  const [sysForm, setSysForm] = useState({ body: '', effective_until: '' });
   const [resultModal, setResultModal] = useState({ open: false, type: 'success', message: '', auditLine: null });
   const { busy, runAction } = useActionFeedback();
 
@@ -172,11 +176,43 @@ export default function Settings() {
     }
   };
 
+  const loadSysNotifications = () => {
+    api.get('/settings/system-notifications').then((res) => setSysNotifications(res.data || [])).catch(() => {});
+  };
+
   const load = () => {
     api.get('/stages').then((res) => setStages(res.data)).catch(() => {});
     api.get('/settings/checklists').then((res) => setChecklists(res.data)).catch(() => {});
     api.get('/settings/general').then((res) => setGeneral((prev) => mergeGeneralFromApi(prev, res.data))).catch(() => {});
     api.get('/settings/lead-picklists').then((res) => setPicklists(res.data || {})).catch(() => {});
+    loadSysNotifications();
+  };
+
+  const publishSystemNotification = async (e) => {
+    e.preventDefault();
+    try {
+      await runAction(async () => {
+        await api.post('/settings/system-notifications', {
+          body: sysForm.body.trim(),
+          effective_until: sysForm.effective_until || null,
+        });
+        setSysForm({ body: '', effective_until: '' });
+        loadSysNotifications();
+      }, { successMessage: 'Notification published.' });
+      showResult('success', 'System notification published to all users.', { events: ['system_notification.created'], logged_at: new Date().toISOString() });
+    } catch (err) {
+      showResult('error', apiErrorMessage(err, 'Could not publish notification.'), null);
+    }
+  };
+
+  const deactivateNotification = async (id) => {
+    try {
+      await api.patch(`/settings/system-notifications/${id}`, { is_active: false });
+      loadSysNotifications();
+      showResult('success', 'Notification deactivated.', null);
+    } catch (err) {
+      showResult('error', apiErrorMessage(err, 'Could not deactivate.'), null);
+    }
   };
 
   useEffect(() => { load(); }, []);
@@ -308,7 +344,8 @@ export default function Settings() {
         onClose={() => setResultModal((m) => ({ ...m, open: false }))}
       />
 
-      <div className="card">
+      <div className="settings-top-grid">
+      <div className="card settings-panel-general">
         <div className="settings-card-header">
           <h3>General</h3>
           <SettingsSectionSaveButton
@@ -317,7 +354,7 @@ export default function Settings() {
             onClick={saveGeneralSection}
           />
         </div>
-        <div className="grid cols-2" style={{ maxWidth: 480 }}>
+        <div className="grid cols-1 settings-general-fields">
           <div className="form-row">
             <label>Stale task threshold (days, dashboard "no change" rule)</label>
             <input
@@ -358,19 +395,18 @@ export default function Settings() {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card settings-panel-inbox">
         <div className="settings-card-header">
-          <h3>Inbox access (by role)</h3>
+          <h3>
+            Inbox access (by role)
+            <HelpIcon text={help.inboxAccessSettings} title="Inbox access" label="Help: Inbox access" />
+          </h3>
           <SettingsSectionSaveButton
             label="Save Inbox access"
             disabled={busy}
             onClick={saveInboxSection}
           />
         </div>
-        <p className="kpi-sub">
-          Controls who sees the Inbox menu and may use inbox APIs. Only roles defined as inbox-capable in the product can be enabled.
-          After saving, CRM users refocus this tab or reload to refresh the Inbox menu (session is updated automatically).
-        </p>
         <ul className="settings-role-checklist">
           {(general['crm.inbox_role_catalog'] || []).map(({ code, name }) => {
             const enabled = (general['crm.inbox_enabled_roles'] || []).includes(code);
@@ -395,6 +431,55 @@ export default function Settings() {
             );
           })}
         </ul>
+      </div>
+      </div>
+
+      <div className="card">
+        <h3>System notifications (all users)</h3>
+        <p className="kpi-sub">Shown on login with welcome message until effective end date or deactivation.</p>
+        <form onSubmit={publishSystemNotification} className="grid cols-2" style={{ alignItems: 'end', marginBottom: 16 }}>
+          <div className="form-row" style={{ gridColumn: '1 / -1' }}>
+            <label>Message *</label>
+            <textarea
+              rows={2}
+              value={sysForm.body}
+              onChange={(e) => setSysForm({ ...sysForm, body: e.target.value })}
+              placeholder="System Maintenance on 20-10-2026"
+              required
+            />
+          </div>
+          <div className="form-row">
+            <label>Effective until (optional)</label>
+            <input
+              type="datetime-local"
+              value={sysForm.effective_until}
+              onChange={(e) => setSysForm({ ...sysForm, effective_until: e.target.value })}
+            />
+          </div>
+          <div className="form-row">
+            <button type="submit" disabled={busy}>Publish to all users</button>
+          </div>
+        </form>
+        <table>
+          <thead><tr><th>Message</th><th>Active</th><th>Until</th><th></th></tr></thead>
+          <tbody>
+            {sysNotifications.map((n) => (
+              <tr key={n.id}>
+                <td>{n.body}</td>
+                <td>{n.is_active ? 'Yes' : 'No'}</td>
+                <td>{n.effective_until ? new Date(n.effective_until).toLocaleString() : '—'}</td>
+                <td>
+                  {n.is_active && (
+                    <button type="button" className="small secondary" onClick={() => deactivateNotification(n.id)}>Deactivate</button>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {!sysNotifications.length && (
+              <tr><td colSpan={4} className="kpi-sub">No notifications published.</td></tr>
+            )}
+          </tbody>
+        </table>
       </div>
 
       <div className="card">

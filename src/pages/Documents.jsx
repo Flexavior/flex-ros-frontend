@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import api from '../api/client.js';
 
 export default function Documents() {
@@ -9,6 +9,12 @@ export default function Documents() {
   const [message, setMessage] = useState(null);
   const [upload, setUpload] = useState({ title: '', category: 'proposal', library: 'sales', file: null });
   const [busy, setBusy] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const pickFile = (file) => {
+    if (file) setUpload((u) => ({ ...u, file }));
+  };
 
   const load = () => {
     const params = libraryFilter ? { library: libraryFilter } : {};
@@ -66,7 +72,7 @@ export default function Documents() {
       });
       setMessage('Document uploaded to library.');
       setUpload((u) => ({ ...u, title: '', file: null }));
-      e.target.reset();
+      if (fileInputRef.current) fileInputRef.current.value = '';
       load();
     } catch (err) {
       setError(err.response?.data?.message || 'Upload failed.');
@@ -87,9 +93,9 @@ export default function Documents() {
       {error && <p className="error-text">{error}</p>}
 
       {canUpload && (
-        <form className="card" onSubmit={submitUpload} style={{ marginBottom: 16 }}>
+        <form className="card documents-upload-card" onSubmit={submitUpload} style={{ marginBottom: 16 }}>
           <h3>Upload to library</h3>
-          <div className="grid cols-3">
+          <div className="documents-upload-row">
             <div className="form-row">
               <label>Library</label>
               <select value={upload.library} onChange={(e) => setUpload({ ...upload, library: e.target.value })} required>
@@ -110,12 +116,38 @@ export default function Documents() {
               <label>Title</label>
               <input value={upload.title} onChange={(e) => setUpload({ ...upload, title: e.target.value })} required />
             </div>
-            <div className="form-row" style={{ gridColumn: '1 / -1' }}>
+            <div className="form-row documents-drop-cell">
               <label>File</label>
-              <input type="file" onChange={(e) => setUpload({ ...upload, file: e.target.files?.[0] || null })} required />
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="documents-file-input-hidden"
+                onChange={(e) => pickFile(e.target.files?.[0] || null)}
+              />
+              <button
+                type="button"
+                className={`documents-drop-zone${dragOver ? ' drag-over' : ''}`}
+                aria-label="Choose or drop file"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  pickFile(e.dataTransfer.files?.[0] || null);
+                }}
+              >
+                <span className="documents-drop-plus" aria-hidden>+</span>
+                <span className="documents-drop-label">
+                  {upload.file ? upload.file.name : 'Drop or click'}
+                </span>
+              </button>
+            </div>
+            <div className="form-row documents-upload-submit">
+              <label>&nbsp;</label>
+              <button type="submit" disabled={busy || !upload.file}>{busy ? 'Uploading…' : 'Upload'}</button>
             </div>
           </div>
-          <button type="submit" disabled={busy}>{busy ? 'Uploading…' : 'Upload'}</button>
         </form>
       )}
 

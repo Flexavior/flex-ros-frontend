@@ -1,13 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/client.js';
+import HelpModal from '../components/HelpModal.jsx';
+import { help } from '../content/helpText.js';
 
 export default function Products() {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState({ code: '', name: '', type: 'service', price: '' });
   const [error, setError] = useState(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchDraft, setSearchDraft] = useState('');
+  const [searchApplied, setSearchApplied] = useState('');
 
-  const load = () => api.get('/products-services').then((res) => setItems(res.data)).catch(() => {});
-  useEffect(() => { load(); }, []);
+  const load = () => {
+    const params = {};
+    if (searchApplied.trim()) params.search = searchApplied.trim();
+    return api.get('/products-services', { params }).then((res) => setItems(res.data)).catch(() => {});
+  };
+
+  useEffect(() => { load(); }, [searchApplied]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -24,6 +34,17 @@ export default function Products() {
   const remove = async (id) => {
     await api.delete(`/products-services/${id}`);
     load();
+  };
+
+  const applySearch = () => {
+    setSearchApplied(searchDraft.trim());
+    setSearchOpen(false);
+  };
+
+  const clearSearch = () => {
+    setSearchDraft('');
+    setSearchApplied('');
+    setSearchOpen(false);
   };
 
   return (
@@ -47,8 +68,36 @@ export default function Products() {
       </form>
 
       <div className="card">
+        {searchApplied && (
+          <p className="kpi-sub">
+            Filter: &quot;{searchApplied}&quot;
+            {' '}
+            <button type="button" className="small secondary" onClick={clearSearch}>Clear</button>
+          </p>
+        )}
         <table>
-          <thead><tr><th>Code</th><th>Name</th><th>Type</th><th>Price</th><th></th></tr></thead>
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>
+                <span className="th-with-action">
+                  Name
+                  <button
+                    type="button"
+                    className="table-search-btn"
+                    aria-label="Search products by name"
+                    title="Search name"
+                    onClick={() => setSearchOpen(true)}
+                  >
+                    🔍
+                  </button>
+                </span>
+              </th>
+              <th>Type</th>
+              <th>Price</th>
+              <th></th>
+            </tr>
+          </thead>
           <tbody>
             {items.map((p) => (
               <tr key={p.id}>
@@ -56,13 +105,36 @@ export default function Products() {
                 <td>{p.name}</td>
                 <td>{p.type}</td>
                 <td>{p.price ? `$${Number(p.price).toLocaleString()}` : '—'}</td>
-                <td><button className="small danger" onClick={() => remove(p.id)}>Remove</button></td>
+                <td><button type="button" className="small danger" onClick={() => remove(p.id)}>Remove</button></td>
               </tr>
             ))}
-            {!items.length && <tr><td colSpan={5} className="kpi-sub">Catalogue empty.</td></tr>}
+            {!items.length && (
+              <tr>
+                <td colSpan={5} className="kpi-sub">
+                  {searchApplied ? 'No products match your search.' : 'Catalogue empty.'}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
+
+      <HelpModal open={searchOpen} title="Search products & services" onClose={() => setSearchOpen(false)}>
+        <p className="kpi-sub">{help.productsNameSearch}</p>
+        <div className="form-row">
+          <label htmlFor="products-name-search">Words (3–4 recommended)</label>
+          <input
+            id="products-name-search"
+            value={searchDraft}
+            onChange={(e) => setSearchDraft(e.target.value)}
+            placeholder="e.g. mobile app development"
+          />
+        </div>
+        <p style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+          <button type="button" className="primary" onClick={applySearch}>Apply</button>
+          <button type="button" className="secondary" onClick={clearSearch}>Clear</button>
+        </p>
+      </HelpModal>
     </div>
   );
 }

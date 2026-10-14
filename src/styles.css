@@ -788,6 +788,99 @@ input:disabled, select:disabled, textarea:disabled, button:disabled {
   justify-self: center;
 }
 
+.settings-top-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 960px) {
+  .settings-top-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-general-fields .form-row input,
+.settings-general-fields .form-row textarea {
+  width: 100%;
+}
+
+.documents-upload-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) minmax(140px, 1.2fr) minmax(100px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+@media (max-width: 900px) {
+  .documents-upload-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .documents-upload-submit {
+    grid-column: 1 / -1;
+  }
+}
+
+.documents-file-input-hidden {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.documents-drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 72px;
+  width: 100%;
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  cursor: pointer;
+  padding: 8px;
+}
+
+.documents-drop-zone.drag-over {
+  border-color: var(--primary);
+  background: var(--surface-active);
+}
+
+.documents-drop-plus {
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.documents-drop-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.th-with-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.table-search-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
 .settings-role-label {
   font-size: 14px;
   line-height: 1.35;
