@@ -135,13 +135,9 @@ export default function Inbox() {
 
       {!conversations.length && (
         <div className="inbox-empty-help" role="note">
-          <strong>No conversations in CRM yet.</strong>
+          <strong>No conversations yet.</strong>
           {' '}
-          This Inbox mirrors <strong>ConvyMes</strong> (Facebook, Viber, LINE) and optional Outlook threads — not your whole Microsoft mailbox.
-          {' '}
-          <strong>Mail.Read</strong> supports Graph send/receive hooks; messages appear here after the gateway webhook or supervisor <strong>Sync from ConvyMes</strong>.
-          {' '}
-          Confirm <code>CONVYMES_WEBHOOK_URL</code> points at this API and mconvymes is running.
+          New threads will appear here when messages are synced or received.
         </div>
       )}
 

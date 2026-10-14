@@ -19,7 +19,7 @@ import Layout from './components/Layout.jsx';
 import {
   canUseCrmModules,
   canUseSalesCrmModules,
-  INBOX_ROLES,
+  canAccessInbox,
   isAdminUser,
 } from './auth/crmAccess.js';
 
@@ -42,6 +42,22 @@ function AdminDefaultIndex() {
     return <Navigate to="/admin" replace />;
   }
   return <Dashboard />;
+}
+
+function InboxAccess({ children }) {
+  const { user } = useAuth();
+
+  if (!canAccessInbox(user)) {
+    return (
+      <div className="card" role="alert">
+        <h1 className="page-title">Access unavailable</h1>
+        <p>Inbox is not enabled for your role. Contact your supervisor or system admin.</p>
+        <Link to="/">Return to dashboard</Link>
+      </div>
+    );
+  }
+
+  return children;
 }
 
 function SalesCrmAccess({ children }) {
@@ -94,9 +110,9 @@ export default function App() {
           path="/inbox"
           element={
             <CrmOperational>
-              <Protected roles={INBOX_ROLES}>
+              <InboxAccess>
                 <Inbox />
-              </Protected>
+              </InboxAccess>
             </CrmOperational>
           }
         />

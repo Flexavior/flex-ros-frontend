@@ -76,21 +76,23 @@ export default function Settings() {
         if (clean.length) payload[code] = clean;
       }
       await api.put('/settings/checklists', payload);
-      if (general['crm.stale_task_days']) {
-        const qualifyProgressOutcomes = String(general['crm.qualify']?.progress_outcomes_text || '')
-          .split('\n')
-          .map((line) => line.trim())
-          .filter(Boolean);
-        await api.put('/settings/general', {
-          'crm.stale_task_days': Number(general['crm.stale_task_days']),
-          'crm.qualify': {
-            max_idle_touches: Number(general['crm.qualify']?.max_idle_touches || 4),
-            progress_outcomes: qualifyProgressOutcomes.length
-              ? qualifyProgressOutcomes
-              : (general['crm.qualify']?.progress_outcomes || ['Demo booked', 'Proposal sent', 'Won']),
-          },
-        });
+      const qualifyProgressOutcomes = String(general['crm.qualify']?.progress_outcomes_text || '')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+      const generalPayload = {
+        'crm.stale_task_days': Number(general['crm.stale_task_days'] ?? 5),
+        'crm.qualify': {
+          max_idle_touches: Number(general['crm.qualify']?.max_idle_touches || 4),
+          progress_outcomes: qualifyProgressOutcomes.length
+            ? qualifyProgressOutcomes
+            : (general['crm.qualify']?.progress_outcomes || ['Demo booked', 'Proposal sent', 'Won']),
+        },
+      };
+      if (Array.isArray(general['crm.inbox_enabled_roles'])) {
+        generalPayload['crm.inbox_enabled_roles'] = general['crm.inbox_enabled_roles'];
       }
+      await api.put('/settings/general', generalPayload);
       const pickPayload = {};
       for (const key of ADMIN_PICKLIST_KEYS) {
         const text = picklists[key];
@@ -196,6 +198,35 @@ export default function Settings() {
               })}
             />
           </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>Inbox access (by role)</h3>
+        <p className="kpi-sub">
+          Controls who sees the Inbox menu and may use inbox APIs. Only roles defined as inbox-capable in the product can be enabled.
+          Users must sign out and back in (or refresh session) after you save.
+        </p>
+        <div className="form-row" style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 420 }}>
+          {(general['crm.inbox_role_catalog'] || []).map(({ code, name }) => {
+            const enabled = (general['crm.inbox_enabled_roles'] || []).includes(code);
+            return (
+              <label key={code} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={enabled}
+                  onChange={(e) => {
+                    const current = general['crm.inbox_enabled_roles'] || [];
+                    const next = e.target.checked
+                      ? [...new Set([...current, code])]
+                      : current.filter((c) => c !== code);
+                    setGeneral({ ...general, 'crm.inbox_enabled_roles': next });
+                  }}
+                />
+                {name || code}
+              </label>
+            );
+          })}
         </div>
       </div>
 

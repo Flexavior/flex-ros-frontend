@@ -63,10 +63,9 @@ export default function LeadDetail() {
   const [convertClientId, setConvertClientId] = useState('');
   const [products, setProducts] = useState([]);
   const [contacts, setContacts] = useState([]);
-  const [openSections, setOpenSections] = useState({
-    'lead-section-capture': true,
-    'lead-section-qualify': true,
-  });
+  const [openSections, setOpenSections] = useState(() =>
+    Object.fromEntries(SECTION_IDS.map((id) => [id, false])),
+  );
   const [capture, setCapture] = useState({
     lead_source: '',
     organization_type: '',

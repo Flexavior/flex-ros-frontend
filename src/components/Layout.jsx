@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import {
   canUseCrmModules,
   canUseSalesCrmModules,
-  INBOX_ROLES,
+  canAccessInbox,
   isAdminUser,
 } from '../auth/crmAccess.js';
 
@@ -14,7 +14,7 @@ export default function Layout() {
   const isAdmin = isAdminUser(user);
   const showCrm = canUseCrmModules(user);
   const showSalesCrm = canUseSalesCrmModules(user);
-  const showInbox = showCrm && INBOX_ROLES.includes(user?.role?.code);
+  const showInbox = showCrm && canAccessInbox(user);
   const canProvision = ['admin', 'senior_management', 'ceo'].includes(user?.role?.code);
 
   const handleLogout = async () => {

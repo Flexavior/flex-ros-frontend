@@ -19,7 +19,12 @@ export const SALES_CRM_ROLES = [
   'sales',
 ];
 
+/** @deprecated Use user.can_access_inbox from /auth/me (settings-backed). */
 export const INBOX_ROLES = CRM_OPERATIONAL_ROLES.filter((r) => r !== 'admin');
+
+export function canAccessInbox(user) {
+  return !!user?.can_access_inbox;
+}
 
 export function isAdminUser(user) {
   return user?.role?.code === 'admin';
