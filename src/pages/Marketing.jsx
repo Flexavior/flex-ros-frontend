@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/client.js';
+import { fetchAllProductsForPicker } from '../utils/productCatalogApi.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import HelpModal from '../components/HelpModal.jsx';
 
@@ -53,7 +54,7 @@ export default function Marketing() {
     api.get('/marketing/channels').then((res) => setChannels(res.data)).catch(() => {});
     api.get('/marketing/campaigns').then((res) => setCampaigns(res.data)).catch(() => {});
     api.get('/marketing/posts').then((res) => setPosts(res.data)).catch(() => {});
-    api.get('/products-services').then((res) => setProducts(res.data)).catch(() => {});
+    fetchAllProductsForPicker(api).then(setProducts).catch(() => setProducts([]));
   };
 
   useEffect(() => { load(); }, []);

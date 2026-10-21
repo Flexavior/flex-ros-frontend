@@ -1,25 +1,24 @@
 import React, { useEffect, useRef, useState } from 'react';
 import api from '../api/client.js';
+import ListPagination from '../components/ListPagination.jsx';
+import ListTablePlaceholder from '../components/ListTablePlaceholder.jsx';
+import { listMetaFromResponse } from '../utils/listPagination.js';
 
 const MIN_NAME_SEARCH_CHARS = 3;
 
 export default function Products() {
   const [items, setItems] = useState([]);
+  const [meta, setMeta] = useState(null);
   const [form, setForm] = useState({ code: '', name: '', type: 'service', price: '' });
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState(null);
   const [nameSearchOpen, setNameSearchOpen] = useState(false);
   const [nameSearchDraft, setNameSearchDraft] = useState('');
   const [nameSearch, setNameSearch] = useState('');
   const nameSearchInputRef = useRef(null);
-
-  const load = () => {
-    const params = {};
-    const q = nameSearch.trim();
-    if (q.length >= MIN_NAME_SEARCH_CHARS) params.search = q;
-    return api.get('/products-services', { params }).then((res) => setItems(res.data)).catch(() => {});
-  };
-
-  useEffect(() => { load(); }, [nameSearch]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -32,8 +31,34 @@ export default function Products() {
   }, [nameSearchDraft]);
 
   useEffect(() => {
+    setPage(1);
+  }, [nameSearch]);
+
+  useEffect(() => {
     if (nameSearchOpen) nameSearchInputRef.current?.focus();
   }, [nameSearchOpen]);
+
+  const load = () => {
+    const params = { page, per_page: perPage };
+    const q = nameSearch.trim();
+    if (q.length >= MIN_NAME_SEARCH_CHARS) params.search = q;
+
+    setListLoading(true);
+    setListError(null);
+    return api.get('/products-services', { params })
+      .then((res) => {
+        setItems(res.data.data || []);
+        setMeta(listMetaFromResponse(res.data));
+      })
+      .catch((err) => {
+        setListError(err.response?.data?.message || 'Failed to load catalogue.');
+      })
+      .finally(() => setListLoading(false));
+  };
+
+  useEffect(() => {
+    load();
+  }, [page, perPage, nameSearch]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -81,76 +106,86 @@ export default function Products() {
       </form>
 
       <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>
-                <span className="th-with-action th-name-search">
-                  Name
-                  <button
-                    type="button"
-                    className="table-search-btn"
-                    aria-label={nameSearchOpen ? 'Focus name search' : 'Search by name'}
-                    aria-expanded={nameSearchOpen}
-                    title="Search name"
-                    onClick={() => setNameSearchOpen(true)}
-                  >
-                    🔍
-                  </button>
-                  {nameSearchOpen && (
-                    <span className="table-header-search-wrap">
-                      <input
-                        ref={nameSearchInputRef}
-                        type="search"
-                        className="table-header-search-input"
-                        value={nameSearchDraft}
-                        onChange={(e) => setNameSearchDraft(e.target.value)}
-                        placeholder="3+ characters…"
-                        aria-label="Filter products by name keywords"
-                        autoComplete="off"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Escape') clearNameSearch();
-                        }}
-                      />
-                      {(nameSearchDraft || searchActive) && (
-                        <button
-                          type="button"
-                          className="table-header-search-clear"
-                          aria-label="Clear name search"
-                          onClick={clearNameSearch}
-                        >
-                          ×
-                        </button>
-                      )}
-                    </span>
-                  )}
-                </span>
-              </th>
-              <th>Type</th>
-              <th>Price</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((p) => (
-              <tr key={p.id}>
-                <td>{p.code}</td>
-                <td>{p.name}</td>
-                <td>{p.type}</td>
-                <td>{p.price ? `$${Number(p.price).toLocaleString()}` : '—'}</td>
-                <td><button type="button" className="small danger" onClick={() => remove(p.id)}>Remove</button></td>
-              </tr>
-            ))}
-            {!items.length && (
+        <div className="table-scroll" role="region" aria-label="Products catalogue">
+          <table>
+            <thead>
               <tr>
-                <td colSpan={5} className="kpi-sub">
-                  {searchActive ? 'No products match your search.' : 'Catalogue empty.'}
-                </td>
+                <th>Code</th>
+                <th>
+                  <span className="th-with-action th-name-search">
+                    Name
+                    <button
+                      type="button"
+                      className="table-search-btn"
+                      aria-label={nameSearchOpen ? 'Focus name search' : 'Search by name'}
+                      aria-expanded={nameSearchOpen}
+                      title="Search name"
+                      onClick={() => setNameSearchOpen(true)}
+                    >
+                      🔍
+                    </button>
+                    {nameSearchOpen && (
+                      <span className="table-header-search-wrap">
+                        <input
+                          ref={nameSearchInputRef}
+                          type="search"
+                          className="table-header-search-input"
+                          value={nameSearchDraft}
+                          onChange={(e) => setNameSearchDraft(e.target.value)}
+                          placeholder="3+ characters…"
+                          aria-label="Filter products by name keywords"
+                          autoComplete="off"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') clearNameSearch();
+                          }}
+                        />
+                        {(nameSearchDraft || searchActive) && (
+                          <button
+                            type="button"
+                            className="table-header-search-clear"
+                            aria-label="Clear name search"
+                            onClick={clearNameSearch}
+                          >
+                            ×
+                          </button>
+                        )}
+                      </span>
+                    )}
+                  </span>
+                </th>
+                <th>Type</th>
+                <th>Price</th>
+                <th></th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map((p) => (
+                <tr key={p.id}>
+                  <td>{p.code}</td>
+                  <td>{p.name}</td>
+                  <td>{p.type}</td>
+                  <td>{p.price ? `$${Number(p.price).toLocaleString()}` : '—'}</td>
+                  <td><button type="button" className="small danger" onClick={() => remove(p.id)}>Remove</button></td>
+                </tr>
+              ))}
+              <ListTablePlaceholder
+                colSpan={5}
+                loading={listLoading}
+                isEmpty={!items.length}
+                hasActiveFilters={searchActive}
+                emptyMessage="Catalogue empty."
+                filteredEmptyMessage="No products match your search."
+                error={listError}
+                onRetry={load}
+              />
+            </tbody>
+          </table>
+        </div>
+        <ListPagination
+          meta={meta}
+          onPageChange={setPage}
+          onPerPageChange={(n) => { setPerPage(n); setPage(1); }}
+        />
       </div>
     </div>
   );

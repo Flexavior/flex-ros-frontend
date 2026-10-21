@@ -8,6 +8,7 @@ import LeadPipelineRibbon from '../components/LeadPipelineRibbon.jsx';
 import PicklistSelect from '../components/PicklistSelect.jsx';
 import { help } from '../content/helpText.js';
 import { normalizeLeadPayload } from '../utils/normalizeLead.js';
+import { fetchAllProductsForPicker } from '../utils/productCatalogApi.js';
 import ActionToast from '../components/ActionToast.jsx';
 import LeadDetailActionRail from '../components/LeadDetailActionRail.jsx';
 import LeadEmailModal from '../components/LeadEmailModal.jsx';
@@ -123,9 +124,7 @@ export default function LeadDetail() {
         setLead(null);
         setError(msg);
       });
-    api.get('/products-services')
-      .then((res) => setProducts(Array.isArray(res.data) ? res.data : []))
-      .catch(() => setProducts([]));
+    fetchAllProductsForPicker(api).then(setProducts).catch(() => setProducts([]));
   };
 
   useEffect(() => {
