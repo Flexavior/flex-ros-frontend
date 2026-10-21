@@ -1,23 +1,39 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import api from '../api/client.js';
-import HelpModal from '../components/HelpModal.jsx';
-import { help } from '../content/helpText.js';
+
+const MIN_NAME_SEARCH_CHARS = 3;
 
 export default function Products() {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState({ code: '', name: '', type: 'service', price: '' });
   const [error, setError] = useState(null);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchDraft, setSearchDraft] = useState('');
-  const [searchApplied, setSearchApplied] = useState('');
+  const [nameSearchOpen, setNameSearchOpen] = useState(false);
+  const [nameSearchDraft, setNameSearchDraft] = useState('');
+  const [nameSearch, setNameSearch] = useState('');
+  const nameSearchInputRef = useRef(null);
 
   const load = () => {
     const params = {};
-    if (searchApplied.trim()) params.search = searchApplied.trim();
+    const q = nameSearch.trim();
+    if (q.length >= MIN_NAME_SEARCH_CHARS) params.search = q;
     return api.get('/products-services', { params }).then((res) => setItems(res.data)).catch(() => {});
   };
 
-  useEffect(() => { load(); }, [searchApplied]);
+  useEffect(() => { load(); }, [nameSearch]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const trimmed = nameSearchDraft.trim();
+      if (trimmed.length === 0 || trimmed.length >= MIN_NAME_SEARCH_CHARS) {
+        setNameSearch(trimmed);
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [nameSearchDraft]);
+
+  useEffect(() => {
+    if (nameSearchOpen) nameSearchInputRef.current?.focus();
+  }, [nameSearchOpen]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -36,16 +52,13 @@ export default function Products() {
     load();
   };
 
-  const applySearch = () => {
-    setSearchApplied(searchDraft.trim());
-    setSearchOpen(false);
+  const clearNameSearch = () => {
+    setNameSearchDraft('');
+    setNameSearch('');
+    setNameSearchOpen(false);
   };
 
-  const clearSearch = () => {
-    setSearchDraft('');
-    setSearchApplied('');
-    setSearchOpen(false);
-  };
+  const searchActive = nameSearch.length >= MIN_NAME_SEARCH_CHARS;
 
   return (
     <div>
@@ -68,29 +81,50 @@ export default function Products() {
       </form>
 
       <div className="card">
-        {searchApplied && (
-          <p className="kpi-sub">
-            Filter: &quot;{searchApplied}&quot;
-            {' '}
-            <button type="button" className="small secondary" onClick={clearSearch}>Clear</button>
-          </p>
-        )}
         <table>
           <thead>
             <tr>
               <th>Code</th>
               <th>
-                <span className="th-with-action">
+                <span className="th-with-action th-name-search">
                   Name
                   <button
                     type="button"
                     className="table-search-btn"
-                    aria-label="Search products by name"
+                    aria-label={nameSearchOpen ? 'Focus name search' : 'Search by name'}
+                    aria-expanded={nameSearchOpen}
                     title="Search name"
-                    onClick={() => setSearchOpen(true)}
+                    onClick={() => setNameSearchOpen(true)}
                   >
                     🔍
                   </button>
+                  {nameSearchOpen && (
+                    <span className="table-header-search-wrap">
+                      <input
+                        ref={nameSearchInputRef}
+                        type="search"
+                        className="table-header-search-input"
+                        value={nameSearchDraft}
+                        onChange={(e) => setNameSearchDraft(e.target.value)}
+                        placeholder="3+ characters…"
+                        aria-label="Filter products by name keywords"
+                        autoComplete="off"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') clearNameSearch();
+                        }}
+                      />
+                      {(nameSearchDraft || searchActive) && (
+                        <button
+                          type="button"
+                          className="table-header-search-clear"
+                          aria-label="Clear name search"
+                          onClick={clearNameSearch}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </span>
+                  )}
                 </span>
               </th>
               <th>Type</th>
@@ -111,30 +145,13 @@ export default function Products() {
             {!items.length && (
               <tr>
                 <td colSpan={5} className="kpi-sub">
-                  {searchApplied ? 'No products match your search.' : 'Catalogue empty.'}
+                  {searchActive ? 'No products match your search.' : 'Catalogue empty.'}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-
-      <HelpModal open={searchOpen} title="Search products & services" onClose={() => setSearchOpen(false)}>
-        <p className="kpi-sub">{help.productsNameSearch}</p>
-        <div className="form-row">
-          <label htmlFor="products-name-search">Words (3–4 recommended)</label>
-          <input
-            id="products-name-search"
-            value={searchDraft}
-            onChange={(e) => setSearchDraft(e.target.value)}
-            placeholder="e.g. mobile app development"
-          />
-        </div>
-        <p style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-          <button type="button" className="primary" onClick={applySearch}>Apply</button>
-          <button type="button" className="secondary" onClick={clearSearch}>Clear</button>
-        </p>
-      </HelpModal>
     </div>
   );
 }

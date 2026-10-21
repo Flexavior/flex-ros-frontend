@@ -68,6 +68,12 @@ const ADMIN_PICKLIST_KEYS = [
   'contact_method',
 ];
 
+const DASHBOARD_STAGE_BANDS = [
+  { key: 'crm.dashboard.mql_stages', label: 'MQL stages', fallback: ['New', 'Contacted'] },
+  { key: 'crm.dashboard.sql_stages', label: 'SQL stages', fallback: ['Qualified', 'Demo / Meeting', 'Proposal Sent', 'Negotiation'] },
+  { key: 'crm.dashboard.pipeline_stages', label: 'Pipeline stages', fallback: ['Proposal Sent', 'Negotiation'] },
+];
+
 export default function Settings() {
   const { refreshUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -111,16 +117,37 @@ export default function Settings() {
     'auth.sso.google_enabled': Boolean(general['auth.sso.google_enabled']),
   });
 
+  const dashboardStagesPayload = () => DASHBOARD_STAGE_BANDS.reduce((acc, { key, fallback }) => {
+    const raw = general[key];
+    const selected = Array.isArray(raw)
+      ? [...new Set(raw.map((s) => String(s || '').trim()).filter(Boolean))]
+      : fallback;
+    acc[key] = selected;
+    return acc;
+  }, {});
+
+  const validateDashboardStageBands = (payload) => {
+    const emptyBands = DASHBOARD_STAGE_BANDS
+      .filter(({ key }) => !(payload[key] || []).length)
+      .map(({ label }) => label);
+    if (emptyBands.length) {
+      throw new Error(`Select at least one stage for: ${emptyBands.join(', ')}`);
+    }
+  };
+
   const loadPicklistsOnly = () => {
     api.get('/settings/lead-picklists').then((res) => setPicklists(res.data || {})).catch(() => {});
   };
 
   const saveGeneralSection = async () => {
     try {
+      const stageBands = dashboardStagesPayload();
+      validateDashboardStageBands(stageBands);
       const audit = await runAction(async () => {
         const res = await api.put('/settings/general', {
           ...generalThresholdPayload(),
           ...ssoLoginPayload(),
+          ...stageBands,
         });
         setGeneral((prev) => mergeGeneralFromApi(prev, res.data));
         return res.data?.audit;
@@ -260,6 +287,8 @@ export default function Settings() {
 
   const saveAll = async () => {
     try {
+      const stageBands = dashboardStagesPayload();
+      validateDashboardStageBands(stageBands);
       const audit = await runAction(async () => {
         const payload = {};
         for (const [code, items] of Object.entries(checklists)) {
@@ -271,6 +300,7 @@ export default function Settings() {
           ...generalThresholdPayload(),
           ...inboxRolesPayload(),
           ...ssoLoginPayload(),
+          ...stageBands,
         });
         setGeneral((prev) => mergeGeneralFromApi(prev, generalRes.data));
         const pickPayload = {};
@@ -343,7 +373,7 @@ export default function Settings() {
 
   return (
     <div>
-      <h1 className="page-title">System Settings — Dynamic Checklists</h1>
+      <h1 className="page-title">System Settings</h1>
 
       <SettingsResultModal
         open={resultModal.open}
@@ -414,6 +444,42 @@ export default function Settings() {
                   </label>
                 );
               })}
+            </div>
+          </div>
+          <div className="form-row" style={{ gridColumn: '1 / -1' }}>
+            <label>Dashboard lifecycle stage bands</label>
+            <p className="kpi-sub" style={{ margin: '0 0 8px' }}>
+              Defines MQL, SQL and revenue-pipeline dashboard metrics. Each band must keep at least one stage.
+            </p>
+            <div className="settings-dashboard-bands">
+              {[
+                { key: 'crm.dashboard.mql_stages', label: 'MQL stages' },
+                { key: 'crm.dashboard.sql_stages', label: 'SQL stages' },
+                { key: 'crm.dashboard.pipeline_stages', label: 'Pipeline stages' },
+              ].map(({ key, label }) => (
+                <fieldset key={key} className="settings-stage-band">
+                  <legend>{label}</legend>
+                  {(general['crm.dashboard.stage_catalog'] || []).map((stage) => {
+                    const selected = general[key] || [];
+                    const checked = selected.includes(stage);
+                    return (
+                      <label key={stage} className="settings-role-row">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            const next = checked
+                              ? selected.filter((item) => item !== stage)
+                              : [...selected, stage];
+                            setGeneral({ ...general, [key]: next });
+                          }}
+                        />
+                        <span>{stage}</span>
+                      </label>
+                    );
+                  })}
+                </fieldset>
+              ))}
             </div>
           </div>
           <div className="form-row" style={{ gridColumn: '1 / -1' }}>

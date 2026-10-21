@@ -26,5 +26,5 @@ export const help = {
   inboxAccessSettings:
     'Controls who sees the Inbox menu and may use inbox APIs. Only roles defined as inbox-capable in the product can be enabled. After saving, CRM users refocus this tab or reload to refresh the Inbox menu (session is updated automatically).',
   productsNameSearch:
-    'Enter up to four words separated by spaces. Every word must appear in the product or service name.',
+    'Type at least three characters in the Name column search. Use spaces for multiple keywords; every keyword must appear in the product or service name.',
 };

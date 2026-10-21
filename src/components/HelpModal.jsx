@@ -6,14 +6,19 @@ import { createPortal } from 'react-dom';
  */
 export default function HelpModal({ open, title, children, onClose }) {
   const titleId = useId();
+  const modalRef = useRef(null);
   const closeRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return undefined;
     const prev = document.activeElement;
-    closeRef.current?.focus();
+    const focusTarget =
+      modalRef.current?.querySelector('[autofocus], input, textarea, select') ?? closeRef.current;
+    focusTarget?.focus();
     const onKey = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
     };
     document.addEventListener('keydown', onKey);
     const prevOverflow = document.body.style.overflow;
@@ -23,13 +28,14 @@ export default function HelpModal({ open, title, children, onClose }) {
       document.body.style.overflow = prevOverflow;
       if (prev && typeof prev.focus === 'function') prev.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
   return createPortal(
     <div className="help-modal-overlay" role="presentation" onClick={onClose}>
       <div
+        ref={modalRef}
         className="help-modal"
         role="dialog"
         aria-modal="true"
@@ -41,11 +47,11 @@ export default function HelpModal({ open, title, children, onClose }) {
           <button
             ref={closeRef}
             type="button"
-            className="help-modal-close secondary small"
-            onClick={onClose}
-            aria-label="Close help"
+            className="help-modal-close"
+            onClick={() => onCloseRef.current()}
+            aria-label="Close"
           >
-            Close
+            ×
           </button>
         </header>
         <div className="help-modal-body">{children}</div>

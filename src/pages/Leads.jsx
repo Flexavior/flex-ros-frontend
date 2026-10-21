@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import api from '../api/client.js';
 import HelpIcon from '../components/HelpIcon.jsx';
 import LeadJourneyGuide from '../components/LeadJourneyGuide.jsx';
@@ -21,10 +21,11 @@ function formatLeadCustomValue(lead, field) {
 
 export default function Leads() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [leads, setLeads] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [schema, setSchema] = useState({ picklists: {}, custom_fields: { lead: [] } });
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('stage') || '');
   const [sourceFilter, setSourceFilter] = useState('');
   const [form, setForm] = useState({
     name: '',
@@ -51,6 +52,7 @@ export default function Leads() {
   const [search, setSearch] = useState('');
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState(null);
+  const stageQuery = searchParams.get('stage') || '';
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchDraft.trim()), 350);
@@ -58,6 +60,18 @@ export default function Leads() {
   }, [searchDraft]);
 
   useEffect(() => { setPage(1); }, [search]);
+
+  useEffect(() => {
+    setStatusFilter(stageQuery);
+  }, [stageQuery]);
+
+  const updateStageFilter = (stage) => {
+    setStatusFilter(stage);
+    const next = new URLSearchParams(searchParams);
+    if (stage) next.set('stage', stage);
+    else next.delete('stage');
+    setSearchParams(next, { replace: true });
+  };
 
   const load = () => {
     const params = { page, per_page: perPage };
@@ -116,9 +130,11 @@ export default function Leads() {
         lead_source: schema.picklists?.lead_source?.[0] || '',
         current_stage: schema.picklists?.current_stage?.[0] || '',
         organization_type: '',
-    customer_segment: '',
+        customer_segment: '',
         industry: '',
         geo_location: '',
+        interest_level: '',
+        buying_timeline: '',
         notes: '',
         custom_fields: {},
       });
@@ -293,7 +309,7 @@ export default function Leads() {
         <div className="grid cols-3">
           <div className="form-row">
             <label htmlFor="leads-filter-stage">Filter by stage</label>
-            <select id="leads-filter-stage" name="current_stage" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <select id="leads-filter-stage" name="current_stage" value={statusFilter} onChange={(e) => updateStageFilter(e.target.value)}>
               <option value="">All</option>
               {(schema.picklists?.current_stage || []).map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
