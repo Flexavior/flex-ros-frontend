@@ -2,7 +2,7 @@ import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 
 /**
- * Laravel Echo + Reverb (Pusher protocol) for inbox realtime.
+ * Laravel Echo + Reverb (Pusher protocol).
  * Returns null when VITE_REVERB_APP_KEY is unset (graceful degradation).
  */
 export function createInboxEcho() {
@@ -29,4 +29,9 @@ export function createInboxEcho() {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     },
   });
+}
+
+/** Alias for inbox, dashboard, and other private Reverb channels. */
+export function createAppEcho() {
+  return createInboxEcho();
 }

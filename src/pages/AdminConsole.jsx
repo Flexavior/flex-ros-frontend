@@ -79,8 +79,8 @@ export default function AdminConsole() {
             </tbody>
           </table>
           <p className="kpi-sub" style={{ marginTop: 12 }}>
-            Reverb delivers <strong>inbox message</strong> events to connected agents—not lead pipeline push notifications.
-            Lead alerts use dashboard stale lists and manual refresh until a future notification CR.
+            Reverb pushes <strong>inbox</strong> and <strong>CRM dashboard</strong> refresh signals when watched CRM records change (leads, activities, agreements, campaigns).
+            Without Reverb configured, use the dashboard ↻ control to refresh.
           </p>
         </div>
       </div>

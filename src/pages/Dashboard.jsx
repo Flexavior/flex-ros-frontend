@@ -1,6 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client.js';
+import { createAppEcho } from '../api/echo.js';
+import RefreshIconButton from '../components/RefreshIconButton.jsx';
+import DashboardActionCenter from '../components/DashboardActionCenter.jsx';
 
 function Trend({ comparison }) {
   if (!comparison) return null;
@@ -44,21 +47,47 @@ export default function Dashboard() {
   const [metrics, setMetrics] = useState(null);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const refreshTimerRef = useRef(null);
 
-  const loadMetrics = () => {
+  const loadMetrics = useCallback(() => {
     setRefreshing(true);
     setError(null);
     return api.get('/dashboard/metrics')
       .then((res) => setMetrics(res.data))
       .catch((err) => setError(err.response?.data?.message || 'Failed to load metrics.'))
       .finally(() => setRefreshing(false));
-  };
+  }, []);
+
+  const scheduleRefresh = useCallback(() => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = setTimeout(() => {
+      loadMetrics();
+    }, 400);
+  }, [loadMetrics]);
 
   useEffect(() => {
     loadMetrics();
-    const timer = setInterval(loadMetrics, 60000);
-    return () => clearInterval(timer);
-  }, []);
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    };
+  }, [loadMetrics]);
+
+  useEffect(() => {
+    const echo = createAppEcho();
+    if (!echo) {
+      return undefined;
+    }
+
+    const channel = echo.private('crm-dashboard');
+    channel.listen('.updated', () => {
+      scheduleRefresh();
+    });
+
+    return () => {
+      channel.stopListening('.updated');
+      echo.disconnect();
+    };
+  }, [scheduleRefresh]);
 
   if (error && !metrics) {
     return (
@@ -80,48 +109,18 @@ export default function Dashboard() {
   return (
     <div className="dashboard-page">
       <div className="dashboard-heading">
-        <div>
-          <h1 className="page-title">CRM Dashboard</h1>
-          {metrics.persona && (
-            <p className="kpi-sub">Dynamic view for {String(metrics.persona).replaceAll('_', ' ')}</p>
-          )}
-        </div>
-        <button type="button" className="secondary" disabled={refreshing} onClick={loadMetrics}>
-          {refreshing ? 'Refreshing…' : 'Refresh now'}
-        </button>
+        <h1 className="page-title">CRM Dashboard</h1>
+        <RefreshIconButton
+          loading={refreshing}
+          onClick={loadMetrics}
+          ariaLabel="Refresh dashboard"
+          title="Refresh dashboard"
+        />
       </div>
       {error && <p className="error-text">{error}</p>}
-      {metrics.generated_at && (
-        <p className="kpi-sub dashboard-freshness">
-          Live database facts · Refreshes every 60s · Last updated {new Date(metrics.generated_at).toLocaleTimeString()}
-          {metrics.period?.start && ` · ${new Date(metrics.period.start).toLocaleDateString()}–${new Date(metrics.period.end).toLocaleDateString()}`}
-        </p>
-      )}
 
       {sections.has('actions') && (
-        <DashboardSection title={`Action center (${actionItems.length})`} className="dashboard-actions">
-          {actionItems.length ? (
-            <div className="dashboard-action-list">
-              {actionItems.map((item) => (
-                <div key={item.id} className={`dashboard-action-item priority-${item.priority}`}>
-                  <div>
-                    <span className="badge pending">{item.kind.replaceAll('_', ' ')}</span>
-                    <strong>{item.title}</strong>
-                    {item.meta?.days_no_change != null && (
-                      <span className="kpi-sub">{item.meta.days_no_change} days without change</span>
-                    )}
-                    {item.meta?.scheduled_at && (
-                      <span className="kpi-sub">{new Date(item.meta.scheduled_at).toLocaleString()}</span>
-                    )}
-                  </div>
-                  <Link className="dashboard-details-link" to={item.route}>Details</Link>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="kpi-sub">No priority actions in your current scope.</p>
-          )}
-        </DashboardSection>
+        <DashboardActionCenter items={actionItems} />
       )}
 
       {sections.has('kpis') && (
@@ -131,14 +130,14 @@ export default function Dashboard() {
             value={qoq.leads_created?.current ?? 0}
             qoq={qoq.leads_created}
             yoy={yoy.leads_created}
-            sub={`${metrics.leads?.open ?? 0} currently open`}
+            sub={`${metrics.leads?.open ?? 0} open`}
           />
           <TrendKpi
             label="Converted leads (QTD)"
             value={qoq.converted_leads?.current ?? 0}
             qoq={qoq.converted_leads}
             yoy={yoy.converted_leads}
-            sub={`${metrics.conversion_rate ?? 0}% lifetime conversion`}
+            sub={`${metrics.conversion_rate ?? 0}% conversion`}
           />
           <TrendKpi
             label="Activities (QTD)"
@@ -150,7 +149,7 @@ export default function Dashboard() {
           <div className="card kpi dashboard-kpi">
             <div className="kpi-label">Attention needed</div>
             <div className="kpi-value">{stale.count ?? 0}</div>
-            <div className="kpi-sub">stale leads · {metrics.appointments_this_week ?? 0} appointments in next 7 days</div>
+            <div className="kpi-sub">{metrics.appointments_this_week ?? 0} appointments (7d)</div>
           </div>
         </div>
       )}
@@ -160,7 +159,7 @@ export default function Dashboard() {
           <DashboardSection title="MQL → SQL pipeline ratio">
             <div className="dashboard-ratio">
               <div className="kpi-value">{metrics.mql_sql?.ratio_pct ?? 0}%</div>
-              <p>{metrics.mql_sql?.sql ?? 0} SQL / {metrics.mql_sql?.mql ?? 0} MQL this quarter</p>
+              <p>{metrics.mql_sql?.sql ?? 0} SQL / {metrics.mql_sql?.mql ?? 0} MQL (QTD)</p>
               <div className="dashboard-trend-row">
                 <span>MQL QoQ <Trend comparison={qoq.mql} /></span>
                 <span>MQL YoY <Trend comparison={yoy.mql} /></span>
@@ -168,9 +167,6 @@ export default function Dashboard() {
                 <span>SQL YoY <Trend comparison={yoy.sql} /></span>
               </div>
             </div>
-            <p className="kpi-sub">
-              MQL: {(metrics.mql_sql?.mql_stages || []).join(', ')} · SQL: {(metrics.mql_sql?.sql_stages || []).join(', ')}
-            </p>
           </DashboardSection>
         )}
 
@@ -180,7 +176,7 @@ export default function Dashboard() {
               <div>
                 <div className="kpi-label">Signed agreement value (QTD)</div>
                 <div className="kpi-value">{formatNumber(metrics.revenue?.signed?.amount)}</div>
-                <div className="kpi-sub">{metrics.revenue?.signed?.count ?? 0} signed agreements</div>
+                <div className="kpi-sub">{metrics.revenue?.signed?.count ?? 0} signed</div>
                 <div className="dashboard-trend-row">
                   <span>QoQ <Trend comparison={qoq.signed_revenue} /></span>
                   <span>YoY <Trend comparison={yoy.signed_revenue} /></span>
@@ -189,7 +185,6 @@ export default function Dashboard() {
               <div>
                 <div className="kpi-label">Pipeline opportunities</div>
                 <div className="kpi-value">{metrics.revenue?.pipeline?.lead_count ?? 0}</div>
-                <div className="kpi-sub">{(metrics.revenue?.pipeline?.stages || []).join(', ')}</div>
               </div>
             </div>
           </DashboardSection>
@@ -243,7 +238,7 @@ export default function Dashboard() {
           <div className="progress-bar" style={{ marginBottom: 8 }}>
             <div style={{ width: `${metrics.checklist?.percent ?? 0}%` }} />
           </div>
-          <p className="kpi-sub">{metrics.checklist?.done_items} of {metrics.checklist?.total_items} items completed</p>
+          <p className="kpi-sub">{metrics.checklist?.done_items} / {metrics.checklist?.total_items}</p>
           </DashboardSection>
         )}
 
